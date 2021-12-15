@@ -1,17 +1,16 @@
-# react-native-harbor-sdk
+# harbor-react-native-sdk
 
 ## Getting started
 
-`$ npm install react-native-harbor-sdk --save`
-
-### Mostly automatic installation
-
-`$ react-native link react-native-harbor-sdk`
+`$ npm install harbor-react-native-sdk --save`
+or
+`$ yarn add harbor-react-native-sdk`
 
 ## Usage
 ```javascript
-import HarborSdk from 'react-native-harbor-sdk';
+import HarborSDK from 'harbor-react-native-sdk';
 
-// TODO: What to do with the module?
-HarborSdk;
+// Use any of the Harbor SDK methods
+HarborSDK.initializeSDK()
+HarborSDK.setAccessToken(session.sdkToken, Config.ENV);
 ```
