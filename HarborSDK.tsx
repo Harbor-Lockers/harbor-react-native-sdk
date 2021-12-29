@@ -1,5 +1,5 @@
 /**
- * This exposes the AnywhereLockerSDK native module as a JS module.
+ * This exposes the HarborLockersSDK native module as a JS module.
  */
 import { NativeModules } from 'react-native';
 
@@ -12,7 +12,7 @@ interface HarborLockersSDKInterface {
     password: string,
     environment: string
   ): Promise<number>;
-  setAccessToken(token: string, environment?: string): void; // Environment must be 'development' or 'production'
+  setAccessToken(token: string, environment?: string): void;
   downloadTowerConfigurationWithResolver(): Promise<number>;
   startTowersDiscovery(): void;
   connectToTowerWithIdentifier(
@@ -48,7 +48,10 @@ interface HarborLockersSDKInterface {
     matchToken: string,
     matchAvailable: boolean
   ): void;
-  sendOpenLockerWithTokenCommand(payload: string, payloadAuth: string): void;
+  sendOpenLockerWithTokenCommand(
+    payload: string,
+    payloadAuth: string
+  ): Promise<number>;
   sendOpenAvailableLockerCommand(
     lockerToken: string,
     lockerAvailable: boolean,
