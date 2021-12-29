@@ -263,7 +263,9 @@ RCT_EXPORT_METHOD(sendFindLockersWithTokenCommand:(NSString *)matchToken matchAv
 }
 
 RCT_EXPORT_METHOD(sendOpenLockerWithTokenCommand:(NSString *)payload
-                  payloadAuth:(NSString *)payloadAuth)
+                  payloadAuth:(NSString *)payloadAuth
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * payloadAuthData = [[NSData alloc] initWithHexString:payloadAuth];
   NSData * payloadData = [[NSData alloc] initWithHexString:payload];
@@ -271,7 +273,11 @@ RCT_EXPORT_METHOD(sendOpenLockerWithTokenCommand:(NSString *)payload
   [[HarborSDK shared] sendOpenLockerWithTokenWithPayload:payloadData
                                           payloadAuth:payloadAuthData
                                     completionHandler:^(NSInteger lockerId, NSError * _Nullable error) {
-    
+    if (error == nil) {
+      resolve(@[@(lockerId)]);
+    } else {
+      reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+    }
   }];
 }
 
