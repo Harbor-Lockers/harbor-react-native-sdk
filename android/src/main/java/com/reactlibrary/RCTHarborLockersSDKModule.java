@@ -1,4 +1,4 @@
-package com.lalapp.nativemodule;
+package com.reactlibrary;
 
 import android.util.Log;
 
@@ -23,11 +23,11 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
-import com.harborlockers.sdk.API.Environment;
-import com.harborlockers.sdk.API.SessionPermission;
 import com.harborlockers.sdk.PublicInterface.HarborSDK;
 import com.harborlockers.sdk.PublicInterface.HarborSDKConsole;
 import com.harborlockers.sdk.PublicInterface.HarborSDKDelegate;
+import com.harborlockers.sdk.API.Environment;
+import com.harborlockers.sdk.API.SessionPermission;
 import com.harborlockers.sdk.Models.Tower;
 
 import org.jetbrains.annotations.NotNull;
