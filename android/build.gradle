@@ -73,7 +73,7 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     implementation 'com.facebook.react:react-native:+'  // From node_modules
-    implementation 'com.github.Harbor-Lockers:harbor-android-sdk:1.0.1'
+    implementation 'com.github.Harbor-Lockers:harbor-android-sdk:1.0.2'
 }
 
 def configureReactNativePom(def pom) {
