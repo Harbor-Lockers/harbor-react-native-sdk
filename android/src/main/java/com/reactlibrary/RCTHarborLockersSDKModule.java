@@ -62,6 +62,11 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
+    public void isSyncing(Callback callback) {
+        callback.invoke(HarborSDK.INSTANCE.isSyncing());
+    }
+
+    @ReactMethod
     public void startTowersDiscovery() {
         foundTowers = new HashMap<>();
         Log.d("HarborLockersSDK", "Start devices discovery");

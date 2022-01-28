@@ -46,6 +46,12 @@ RCT_EXPORT_METHOD(initializeSDK)
   [[HarborSDK shared] setDelegate:self];
 }
 
+RCT_EXPORT_METHOD(isSyncing: (RCTResponseSenderBlock)callback)
+{
+  BOOL isSyncing = [[HarborSDK shared] isSyncing];
+  callback(@[@(isSyncing)]);
+}
+
 RCT_EXPORT_METHOD(startTowersDiscovery) {
   self.foundTowers = [NSMutableDictionary new];
   RCTLog(@"Start devices discovery");

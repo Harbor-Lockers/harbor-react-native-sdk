@@ -1,7 +1,7 @@
 {
   "name": "harbor-react-native-sdk",
   "title": "Harbor React Native Sdk",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "A React Native wrapper for the Harbor SDK",
   "main": "HarborSDK.tsx",
   "files": [
