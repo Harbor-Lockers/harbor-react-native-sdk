@@ -127,6 +127,8 @@ RCT_EXPORT_METHOD(downloadTowerConfigurationWithResolver:(RCTPromiseResolveBlock
   Environment env = EnvironmentDevelopment;
   if ([[environment lowercaseString] isEqualToString:@"production"]) {
     env = EnvironmentProduction;
+  } else if ([[environment lowercaseString] isEqualToString:@"sandbox"]) {
+    env = EnvironmentSandbox;
   } else if ([environment hasPrefix:@"http://"] || [environment hasPrefix:@"https://"]) {
     [[HarborSDK shared] setBaseURL:environment];
   }

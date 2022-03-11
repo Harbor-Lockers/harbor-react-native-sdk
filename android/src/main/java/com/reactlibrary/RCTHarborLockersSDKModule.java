@@ -117,6 +117,8 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
         Environment env = Environment.DEVELOPMENT;
         if (environment.toLowerCase().contentEquals("production")) {
             env = Environment.PRODUCTION;
+        } else if (environment.toLowerCase().contentEquals("sandbox")) {
+            env = Environment.SANDBOX;
         } else if (environment.startsWith("http://") || environment.startsWith("https://")) {
             HarborSDK.INSTANCE.setBaseURL(environment);
         }
