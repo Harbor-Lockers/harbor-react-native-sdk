@@ -12,11 +12,8 @@ Pod::Spec.new do |s|
                   react-native-harbor-sdk
                    DESC
   s.homepage     = "https://github.com/github_account/harbor-react-native-sdk"
-  # brief license entry:
-  s.license      = "MIT"
-  # optional - use expanded license entry instead:
-  # s.license    = { :type => "MIT", :file => "LICENSE" }
-  s.authors      = { "Your Name" => "yourname@email.com" }
+  s.license      = { :type => "MIT", :file => "LICENSE" }
+  s.authors      = { "Lucas Diez de Medina" => "lucas@theluxergroup.com" }
   s.platforms    = { :ios => "9.0" }
   s.source       = { :git => "https://github.com/github_account/harbor-react-native-sdk.git", :tag => "#{s.version}" }
 
