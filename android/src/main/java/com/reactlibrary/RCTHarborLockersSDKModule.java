@@ -67,6 +67,20 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
+    public void syncConnectedTower(Promise promise) {
+        HarborSDK.INSTANCE.sync((success, error) -> {
+            if (success) {
+                promise.resolve(true);
+            } else if (error != null) {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            } else {
+                promise.reject("sync_error", "Sync failed");
+            }
+            return null;
+        });
+    }
+
+    @ReactMethod
     public void startTowersDiscovery() {
         foundTowers = new HashMap<>();
         Log.d("HarborLockersSDK", "Start devices discovery");
