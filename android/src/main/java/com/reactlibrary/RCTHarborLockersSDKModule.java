@@ -15,6 +15,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -24,15 +25,16 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.harborlockers.sdk.PublicInterface.HarborSDK;
-import com.harborlockers.sdk.PublicInterface.HarborSDKConsole;
 import com.harborlockers.sdk.PublicInterface.HarborSDKDelegate;
 import com.harborlockers.sdk.API.Environment;
 import com.harborlockers.sdk.API.SessionPermission;
 import com.harborlockers.sdk.Models.Tower;
+import com.harborlockers.sdk.Utils.HarborLogLevel;
+import com.harborlockers.sdk.Utils.HarborLogCallback;
 
 import org.jetbrains.annotations.NotNull;
 
-public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implements HarborSDKDelegate, HarborSDKConsole {
+public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implements HarborSDKDelegate, HarborLogCallback {
     public RCTHarborLockersSDKModule(ReactApplicationContext context) {
         super(context);
         reactContext = context;
@@ -40,6 +42,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
     private final ReactApplicationContext reactContext;
     private Map<String, Tower> foundTowers;
+    private int listenerCount = 0;
 
     @NonNull
     @Override
@@ -55,10 +58,29 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
                 .emit(eventName, params);
     }
 
+    // Required for rn built in EventEmitter Calls.
+    @ReactMethod
+    public void addListener(String eventName) {
+        listenerCount++;
+    }
+
+    // Required for rn built in EventEmitter Calls.
+    @ReactMethod
+    public void removeListeners(Integer count) {
+        listenerCount -= count;
+    }
+
     //region ------ SDK Management Methods ------
+
     @ReactMethod
     public void initializeSDK() {
         HarborSDK.INSTANCE.setDelegate(this);
+    }
+
+    @ReactMethod
+    public void setLogLevel(String logLevel) {
+        HarborSDK.INSTANCE.setLogLevel(logLevelFromString(logLevel));
+        HarborSDK.INSTANCE.setHarborLogCallback(this);
     }
 
     @ReactMethod
@@ -83,8 +105,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     @ReactMethod
     public void startTowersDiscovery() {
         foundTowers = new HashMap<>();
-        Log.d("HarborLockersSDK", "Start devices discovery");
-        HarborSDK.INSTANCE.startTowerDiscoveryWithOutputConsole(this);
+        HarborSDK.INSTANCE.startTowerDiscovery();
     }
 
     @ReactMethod
@@ -294,6 +315,10 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     //region ------ HarborSDKDelegate methods ------
     @Override
     public void harborDidDiscoverTowers(@NotNull List<Tower> towers) {
+        if(listenerCount <= 0) {
+            return;
+        }
+
         WritableArray params = Arguments.createArray();
         for (Tower tower : towers) {
             foundTowers.put(hexString(tower.getTowerId()), tower);
@@ -306,14 +331,83 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
     //endregion
 
-    //region ------ HarborSDKConsole methods ------
+    //region ------ HarborLogCallback methods ------
     @Override
-    public void printToConsole(@NotNull String string) {
+    public void onHarborLog(@NonNull String message, @NonNull HarborLogLevel logType, @Nullable Map<String, ?> context) {
+        if(listenerCount <= 0) {
+            return
+        };
+
         WritableMap params = Arguments.createMap();
-        params.putString("log", string);
-        sendEvent(reactContext, "ConsoleOutput", params);
+        params.putString("message",message);
+        params.putString("logType",logType.name());
+        if(context!=null){
+            params.putMap("context", toWritableMap(context));
+        }
+        sendEvent(reactContext, "HarborLogged", params);
     }
     //endregion
+
+    //region ------ Helper methods ------
+    public static WritableMap toWritableMap(Map<String, ?> map) {
+        WritableMap writableMap = Arguments.createMap();
+        Iterator iterator = map.entrySet().iterator();
+
+        while (iterator.hasNext()) {
+            Map.Entry<String, ?> pair = (Map.Entry) iterator.next();
+            Object value = pair.getValue();
+
+            if (value == null) {
+                writableMap.putNull(pair.getKey());
+            } else if (value instanceof Boolean) {
+                writableMap.putBoolean(pair.getKey(), (Boolean) value);
+            } else if (value instanceof Double) {
+                writableMap.putDouble(pair.getKey(), (Double) value);
+            } else if (value instanceof Integer) {
+                writableMap.putInt(pair.getKey(), (Integer) value);
+            } else if (value instanceof String) {
+                writableMap.putString(pair.getKey(), (String) value);
+            } else if (value instanceof Map) {
+                writableMap.putMap(pair.getKey(), toWritableMap((Map<String, ?>) value));
+            } else if (value.getClass() != null && value.getClass().isArray()) {
+                writableMap.putArray(pair.getKey(), toWritableArray((Object[]) value));
+            }
+        }
+
+        return writableMap;
+    }
+
+    public static WritableArray toWritableArray(Object[] array) {
+        WritableArray writableArray = Arguments.createArray();
+
+        for (int i = 0; i < array.length; i++) {
+            Object value = array[i];
+
+            if (value == null) {
+                writableArray.pushNull();
+            }
+            if (value instanceof Boolean) {
+                writableArray.pushBoolean((Boolean) value);
+            }
+            if (value instanceof Double) {
+                writableArray.pushDouble((Double) value);
+            }
+            if (value instanceof Integer) {
+                writableArray.pushInt((Integer) value);
+            }
+            if (value instanceof String) {
+                writableArray.pushString((String) value);
+            }
+            if (value instanceof Map) {
+                writableArray.pushMap(toWritableMap((Map<String, ?>) value));
+            }
+            if (value.getClass().isArray()) {
+                writableArray.pushArray(toWritableArray((Object[]) value));
+            }
+        }
+
+        return writableArray;
+    }
 
     private String hexString(byte[] bytes) {
         return Hex.encodeHex(bytes, false);
@@ -328,4 +422,21 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
         }
         return data;
     }
+
+    private HarborLogLevel logLevelFromString(String logLevel) {
+        if (logLevel == null) return HarborLogLevel.INFO;
+
+        if (logLevel.toLowerCase().contentEquals("debug")) {
+            return HarborLogLevel.DEBUG;
+        } else if (logLevel.toLowerCase().contentEquals("verbose")) {
+            return HarborLogLevel.VERBOSE;
+        } else if (logLevel.toLowerCase().contentEquals("warning")) {
+            return HarborLogLevel.WARNING;
+        } else if (logLevel.toLowerCase().contentEquals("error")) {
+            return HarborLogLevel.ERROR;
+        }else{
+            return HarborLogLevel.INFO;
+        }
+    }
+    //endregion
 }

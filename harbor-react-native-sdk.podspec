@@ -21,7 +21,7 @@ Pod::Spec.new do |s|
   s.requires_arc = true
 
   s.dependency "React"
-  s.dependency "HarborLockersSDK", '1.0.17'
+  s.dependency "HarborLockersSDK", '1.0.18'
   # ...
   # s.dependency "..."
 end

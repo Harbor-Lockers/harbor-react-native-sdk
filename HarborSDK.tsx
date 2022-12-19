@@ -7,6 +7,7 @@ const { HarborLockersSDK } = NativeModules;
 
 interface HarborLockersSDKInterface {
   initializeSDK(): void;
+  setLogLevel(logLevel: string): void;
   isSyncing(callback: (isSyncing: boolean) => void): void;
   loginWithEmail(
     email: string,

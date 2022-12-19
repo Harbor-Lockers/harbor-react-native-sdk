@@ -11,7 +11,7 @@
 #import <HarborLockersSDK/HarborLockersSDK.h>
 #import <HarborLockersSDK/HarborLockersSDK-Swift.h>
 
-@interface RCTHarborLockersSDKModule() <HarborSDKDelegate, HarborSDKConsole>
+@interface RCTHarborLockersSDKModule() <HarborSDKDelegate, HarborLoggerDelegate>
 
 @property (nonatomic, strong) NSMutableDictionary * foundTowers;
 
@@ -34,10 +34,28 @@
 
 - (NSArray<NSString *> *)supportedEvents
 {
-  return @[@"ConsoleOutput", @"TowersFound"];
+  return @[@"HarborLogged", @"TowersFound"];
 }
 
+
 RCT_EXPORT_MODULE(HarborLockersSDK);
+
+// MARK: - Helper methods -
+- (HarborLogLevel)logLevelFromString:(NSString * _Nonnull)logLevel {
+    if (logLevel == nil) return HarborLogLevelInfo;
+
+    if ([logLevel caseInsensitiveCompare:[HarborLogLevelName withLevel:HarborLogLevelDebug]] == NSOrderedSame) {
+        return HarborLogLevelDebug;
+    } else if ([logLevel caseInsensitiveCompare:[HarborLogLevelName withLevel:HarborLogLevelVerbose]] == NSOrderedSame) {
+        return HarborLogLevelVerbose;
+    } else if ([logLevel caseInsensitiveCompare:[HarborLogLevelName withLevel:HarborLogLevelWarning]] == NSOrderedSame) {
+        return HarborLogLevelWarning;
+    } else if ([logLevel caseInsensitiveCompare:[HarborLogLevelName withLevel:HarborLogLevelError]] == NSOrderedSame) {
+        return HarborLogLevelError;
+    }else{
+        return HarborLogLevelInfo;
+    }
+}
 
 // MARK: - SDK Management methods-
 
@@ -45,6 +63,13 @@ RCT_EXPORT_METHOD(initializeSDK)
 {
   [[HarborSDK shared] setDelegate:self];
 }
+
+RCT_EXPORT_METHOD(setLogLevel:(NSString *)logLevel)
+{
+  [HarborSDK shared].logLevel = [self logLevelFromString:logLevel];
+  [HarborSDK shared].loggerDelegate = self;
+}
+
 
 RCT_EXPORT_METHOD(isSyncing: (RCTResponseSenderBlock)callback)
 {
@@ -70,7 +95,7 @@ RCT_EXPORT_METHOD(syncConnectedTower:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(startTowersDiscovery) {
   self.foundTowers = [NSMutableDictionary new];
   RCTLog(@"Start devices discovery");
-  [[HarborSDK shared] startTowerDiscoveryWithOutputConsole:self];
+  [[HarborSDK shared] startTowerDiscovery];
 }
 
 RCT_EXPORT_METHOD(connectToTowerWithIdentifier: (NSString *)towerId
@@ -635,12 +660,17 @@ RCT_EXPORT_METHOD(sendFactoryResetCommand)
   }
 }
 
-// MARK: - HarborSDKConsole methods -
 
-- (void)printToConsole:(NSString * _Nonnull)string {
-  if (hasListeners) {
-    [self sendEventWithName:@"ConsoleOutput" body:@{@"log": string}];
-  }
+// MARK: - HarborLoggerDelegate methods -
+
+- (void)harborDidLogWithMessage:(NSString * _Nonnull)message logType:(enum HarborLogLevel)logType context:(NSDictionary<NSString *,id> * _Nullable)context {
+    NSDictionary * response = @{@"message" : message,
+                                @"logType" : [HarborLogLevelName withLevel:logType],
+                                @"context" : context,
+    };
+    if (hasListeners) {
+      [self sendEventWithName:@"HarborLogged" body:response];
+    }
 }
 
 @end
