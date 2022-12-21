@@ -184,23 +184,6 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
     //endregion
 
-    //region ------ Keys Management Commands ------
-    @ReactMethod
-    public void sendInstallKeyCommand(double keyId, double keyRotation, double keyExpires, String keyData, String keyLocator) {
-        HarborSDK.INSTANCE.sendInstallKey((int)keyId, (int)keyRotation, new Date((long)keyExpires * 1000), byteArray(keyData), keyLocator, null);
-    }
-
-    @ReactMethod
-    public void sendSunsetKeyCommand(double keyId, double keyRotation) {
-        HarborSDK.INSTANCE.sendSunsetKey((int)keyId, (int)keyRotation, null);
-    }
-
-    @ReactMethod
-    public void sendRevokeKeyCommand(double keyId, double keyRotation) {
-        HarborSDK.INSTANCE.sendRevokeKey((int)keyId, (int)keyRotation, null);
-    }
-    //endregion
-
     //region ------ Sync Events Commands ------
     @ReactMethod
     public void sendRequestSyncStatusCommand() {
