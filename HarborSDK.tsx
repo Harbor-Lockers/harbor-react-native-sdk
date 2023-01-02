@@ -27,15 +27,6 @@ interface HarborLockersSDKInterface {
     successCallback: () => void
   ): void;
   sendTerminateSession(errorCode: number, errorMessage?: string): void;
-  sendInstallKeyCommand(
-    keyId: number,
-    keyRotation: number,
-    keyExpires: number,
-    keyData: string,
-    keyLocator: string
-  ): void;
-  sendSunsetKeyCommand(keyId: number, keyRotation: number): void;
-  sendRevokeKeyCommand(keyId: number, keyRotation: number): void;
 
   sendRequestSyncStatusCommand(): void;
   sendSyncPullCommand(syncEventStart: number): void;
@@ -73,54 +64,6 @@ interface HarborLockersSDKInterface {
   ): void;
   sendTapLockerCommand(lockerTapInterval: number, lockerTapCount: number): void;
   sendCheckAllLockerDoorsCommand(): void;
-
-  sendGetDeviceInfoCommand(): void;
-  sendGetKeyInfoCommand(keyId: number, keyRotation: number): void;
-  sendGetLockerInfoCommand(lockerId: number): void;
-  sendReadDeviceStatusCommand(): void;
-  sendFireLockCommand(lockerPhysicalId: number): void;
-  sendControlLightCommand(
-    lockerPhysicalId: number,
-    lockerLightOn: boolean
-  ): void;
-  sendReadPortStatusCommand(lockerPhysicalId: number): void;
-  sendSoundBuzzerCommand(buzzerSound: number): void;
-  sendSetClockCommand(timestamp: number): void;
-  sendSetSolenoidDelayCommand(solenoidDelay: number): void;
-  sendReadKeypadCommand(): void;
-  sendSetLockerTokenCommand(lockerId: number, lockerToken: string): void;
-  sendSetLockerAvailableCommand(
-    lockerId: number,
-    lockerAvailable: boolean
-  ): void;
-  sendSetLockerKeypadCommand(
-    lockerId: number,
-    keypadCode: string,
-    keypadCodePersists: boolean,
-    keypadNextToken: string,
-    keypadNextAvailable: boolean
-  ): void;
-  sendSetLockerDisabledCommand(lockerId: number, lockerDisabled: boolean): void;
-  sendReadCounterCommand(counterId: number): void;
-  sendResetCounterCommand(counterId: number): void;
-  sendSetTowerIdCommand(towerId: string): void;
-  sendSetTowerSerialCommand(towerSerial: string): void;
-  sendSetTowerNameCommand(towerName: string): void;
-  sendSetTowerDisabledCommand(
-    towerDisabled: boolean,
-    towerReason: string
-  ): void;
-
-  sendResetBatteryGaugeCommand(): void;
-  sendConfigureLockerCommand(
-    lockerId: number,
-    lockerPhysicalId: number,
-    lockerTypeId: number
-  ): void;
-  sendAdjustClockCommand(clockOffset: number): void;
-  sendRebootDeviceCommand(): void;
-  sendBeginFirmwareUpdateCommand(clearAllState: boolean, fileURL: string): void;
-  sendFactoryResetCommand(): void;
 }
 
 export default HarborLockersSDK as HarborLockersSDKInterface;
