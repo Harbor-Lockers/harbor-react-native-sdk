@@ -318,7 +318,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     @Override
     public void onHarborLog(@NonNull String message, @NonNull HarborLogLevel logType, @Nullable Map<String, ?> context) {
         if(listenerCount <= 0) {
-            return
+            return;
         };
 
         WritableMap params = Arguments.createMap();
