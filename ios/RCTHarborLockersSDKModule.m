@@ -163,17 +163,19 @@ RCT_EXPORT_METHOD(downloadTowerConfigurationWithResolver:(RCTPromiseResolveBlock
   }];
 }
 
-- (void)configureSDKEnvironment:(NSString * _Nullable)environment {
-  Environment env = EnvironmentDevelopment;
-  if ([[environment lowercaseString] isEqualToString:@"production"]) {
-    env = EnvironmentProduction;
-  } else if ([[environment lowercaseString] isEqualToString:@"sandbox"]) {
-    env = EnvironmentSandbox;
-  } else if ([environment hasPrefix:@"http://"] || [environment hasPrefix:@"https://"]) {
+- (void)configureSDKEnvironment:(NSString * _Nullable)environment 
+{
+  if ([environment hasPrefix:@"http://"] || [environment hasPrefix:@"https://"]) {
     [[HarborSDK shared] setBaseURL:environment];
+  } else {
+    Environment env = EnvironmentDevelopment;
+    if ([[environment lowercaseString] isEqualToString:@"production"]) {
+      env = EnvironmentProduction;
+    } else if ([[environment lowercaseString] isEqualToString:@"sandbox"]) {
+      env = EnvironmentSandbox;
+    }
+    [[HarborSDK shared] setEnvironment:env];
   }
-  
-  [[HarborSDK shared] setEnvironment:env];
 }
 
 // MARK: - Session Commands -

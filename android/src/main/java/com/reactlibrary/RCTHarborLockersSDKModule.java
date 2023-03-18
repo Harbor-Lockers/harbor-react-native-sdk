@@ -43,6 +43,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     private final ReactApplicationContext reactContext;
     private Map<String, Tower> foundTowers;
     private int listenerCount = 0;
+    private boolean listenerCountActivated = false;
 
     @NonNull
     @Override
@@ -61,6 +62,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     // Required for rn built in EventEmitter Calls.
     @ReactMethod
     public void addListener(String eventName) {
+        listenerCountActivated = true;
         listenerCount++;
     }
 
@@ -149,15 +151,17 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     private void configureSDKEnvironment(@Nullable String environment) {
-        Environment env = Environment.DEVELOPMENT;
-        if (environment.toLowerCase().contentEquals("production")) {
-            env = Environment.PRODUCTION;
-        } else if (environment.toLowerCase().contentEquals("sandbox")) {
-            env = Environment.SANDBOX;
-        } else if (environment.startsWith("http://") || environment.startsWith("https://")) {
+        if (environment.startsWith("http://") || environment.startsWith("https://")) {
             HarborSDK.INSTANCE.setBaseURL(environment);
+        } else {
+            Environment env = Environment.DEVELOPMENT;
+            if (environment.toLowerCase().contentEquals("production")) {
+                env = Environment.PRODUCTION;
+            } else if (environment.toLowerCase().contentEquals("sandbox")) {
+                env = Environment.SANDBOX;
+            }
+            HarborSDK.INSTANCE.setEnvironment(env);
         }
-        HarborSDK.INSTANCE.setEnvironment(env);
     }
     //endregion
 
@@ -298,7 +302,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     //region ------ HarborSDKDelegate methods ------
     @Override
     public void harborDidDiscoverTowers(@NotNull List<Tower> towers) {
-        if(listenerCount <= 0) {
+        if(listenerCountActivated && listenerCount <= 0) {
             return;
         }
 
@@ -317,7 +321,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     //region ------ HarborLogCallback methods ------
     @Override
     public void onHarborLog(@NonNull String message, @NonNull HarborLogLevel logType, @Nullable Map<String, ?> context) {
-        if(listenerCount <= 0) {
+        if(listenerCountActivated && listenerCount <= 0) {
             return;
         };
 
