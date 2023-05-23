@@ -11,6 +11,30 @@
 #import <HarborLockersSDK/HarborLockersSDK.h>
 #import <HarborLockersSDK/HarborLockersSDK-Swift.h>
 
+@interface NSString (HexValidation)
+- (BOOL)isValidHexNumber;
+- (BOOL)isValidTowerId;
+@end
+
+@implementation NSString (HexValidation)
+- (BOOL)isValidTowerId {
+  if ([self length] != 16) {
+      return NO;
+  }
+    return [self isValidHexNumber];
+}
+
+- (BOOL)isValidHexNumber {
+    if ([self isEqualToString:@""]) {
+        return NO;
+    }
+    
+    NSCharacterSet *chars = [[NSCharacterSet characterSetWithCharactersInString:@"0123456789ABCDEF"] invertedSet];
+    NSRange range = [self.uppercaseString rangeOfCharacterFromSet:chars];
+    return (range.location == NSNotFound);
+}
+@end
+
 @interface RCTHarborLockersSDKModule() <HarborSDKDelegate, HarborLoggerDelegate>
 
 @property (nonatomic, strong) NSMutableDictionary * foundTowers;
@@ -102,16 +126,30 @@ RCT_EXPORT_METHOD(connectToTowerWithIdentifier: (NSString *)towerId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-  Tower * towerToConnect = self.foundTowers[towerId];
-  if (towerToConnect != nil) {
-    [[HarborSDK shared] connectToTower:towerToConnect completion:^(NSString * _Nullable name, NSError * _Nullable error) {
-      if([name length] > 0) {
-        resolve(@[name]);
-      } else if(error != nil) {
-        reject([NSString stringWithFormat:@"%ld", error.code], @"Error connecting to a device", error);
-      }
-    }];
+  if(![towerId isValidTowerId]) {
+    reject(@"invalid_tower_id", @"Tower Id should be an String with 16 hexadecimal characters", nil);
+    return;
   }
+
+  NSData *towerIdData = [[NSData new] initWithHexString:towerId];
+  if (towerIdData == nil) {
+    reject(@"invalid_tower_id", @"Invalid tower id", nil);
+    return;
+  }
+  
+  Tower * towerToConnect = self.foundTowers[towerIdData];
+  if (towerToConnect == nil) {
+    reject(@"tower_not_found", @"Tower not found", nil);
+    return;
+  }
+  
+  [[HarborSDK shared] connectToTower:towerToConnect completion:^(NSString * _Nullable name, NSError * _Nullable error) {
+    if([name length] > 0) {
+      resolve(@[name]);
+    } else if(error != nil) {
+      reject([NSString stringWithFormat:@"%ld", error.code], @"Error connecting to a device", error);
+    }
+  }];
 }
 
 // MARK: - API Methods -
@@ -379,7 +417,7 @@ RCT_EXPORT_METHOD(sendCheckAllLockerDoorsCommand)
 - (void)harborDidDiscoverTowers:(NSArray<Tower *> *)towers {
   NSMutableArray * towersInfo = [NSMutableArray new];
   for(Tower * tower in towers) {
-    self.foundTowers[[[tower towerId] hexString]] = tower;
+    self.foundTowers[tower.towerId] = tower;
     NSDictionary * towerInfo = @{@"towerId" : [[tower towerId] hexString],
                                  @"towerName" : [tower towerName],
     };

@@ -14,6 +14,7 @@ import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -41,7 +42,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
         HarborSDK.INSTANCE.init(context.getApplicationContext());
     }
     private final ReactApplicationContext reactContext;
-    private Map<String, Tower> foundTowers;
+    private Map<TowerId, Tower> foundTowers;
     private int listenerCount = 0;
     private boolean listenerCountActivated = false;
 
@@ -111,20 +112,35 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
-    public void connectToTowerWithIdentifier(String towerId, Promise promise) {
-        Tower towerToConnect = foundTowers.get(towerId);
-        if (towerToConnect != null) {
-            HarborSDK.INSTANCE.connectToTower(towerToConnect, (towerName, error) -> {
-                if (error == null) {
-                    WritableArray connectedTowerParam = Arguments.createArray();
-                    connectedTowerParam.pushString(towerName);
-                    promise.resolve(connectedTowerParam);
-                } else {
-                    promise.reject(String.valueOf(1), error.getMessage());
-                }
-                return null;
-            });
+    public void connectToTowerWithIdentifier(String towerIdString, Promise promise) {
+        TowerId towerId = null;
+        try {
+            towerId = new TowerId(towerIdString);
+        } catch(InvalidTowerId ex) {
+            promise.reject("invalid_tower_id", ex);
+            return;
+        } catch(Exception ex) {
+            promise.reject("invalid_tower_id", "Tower Id should be an String with 16 hexadecimal characters");
+            return;
         }
+
+        Tower towerToConnect = foundTowers.get(towerId);
+        if (towerToConnect == null) {
+            promise.reject("tower_not_found", "Tower not found");
+            return;
+        }
+
+        HarborSDK.INSTANCE.connectToTower(towerToConnect, (towerName, error) -> {
+            if (error == null) {
+                WritableArray connectedTowerParam = Arguments.createArray();
+                connectedTowerParam.pushString(towerName);
+                promise.resolve(connectedTowerParam);
+            } else {
+                promise.reject(String.valueOf(1), error.getMessage());
+            }
+            return null;
+        });
+
     }
     //endregion
 
@@ -308,11 +324,14 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
 
         WritableArray params = Arguments.createArray();
         for (Tower tower : towers) {
-            foundTowers.put(hexString(tower.getTowerId()), tower);
-            WritableMap towerMap = Arguments.createMap();
-            towerMap.putString("towerId", hexString(tower.getTowerId()));
-            towerMap.putString("towerName", tower.getTowerName());
-            params.pushMap((ReadableMap) towerMap);
+            try {
+                foundTowers.put(new TowerId(tower.getTowerId()), tower);
+                WritableMap towerMap = Arguments.createMap();
+                towerMap.putString("towerId", hexString(tower.getTowerId()));
+                towerMap.putString("towerName", tower.getTowerName());
+                params.pushMap((ReadableMap) towerMap);
+            } catch(InvalidTowerId ex) { /* If invalid tower id, avoid to add the tower to the array */ }
+
         }
         sendEvent(reactContext, "TowersFound", params);
     }
@@ -425,5 +444,72 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
             return HarborLogLevel.INFO;
         }
     }
+
     //endregion
+}
+
+class ByteArrayKey {
+
+    byte[] data;
+
+    public ByteArrayKey() {
+        data = new byte[0];
+    }
+
+    public ByteArrayKey(byte[] data) {
+        this.data = data;
+    }
+
+    public byte[] getData() {
+        return data;
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(data);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        ByteArrayKey other = (ByteArrayKey) obj;
+        return Arrays.equals(data, other.data);
+    }
+}
+
+class TowerId extends ByteArrayKey {
+
+    TowerId(String hexString) throws InvalidTowerId {
+        super();
+        if (hexString == null || hexString.length() != 16) {
+            throw new InvalidTowerId("Invalid tower Id length, should be 16 characters");
+        }
+
+        int length = hexString.length() / 2;
+        data = new byte[length];
+
+        for (int i = 0; i < length; i++) {
+            String byteString = hexString.substring(i * 2, (i * 2) + 2);
+            int byteValue = Integer.parseInt(byteString, 16);
+            data[i] = (byte) byteValue;
+        }
+    }
+
+    TowerId(byte[] towerIdBytes) throws InvalidTowerId {
+        super(towerIdBytes);
+        if (towerIdBytes == null || towerIdBytes.length != 8) {
+            throw new InvalidTowerId("Invalid tower Id length, should be 8 bytes");
+        }
+    }
+}
+
+class InvalidTowerId extends Exception {
+    public InvalidTowerId(String errorMessage) {
+        super(errorMessage);
+    }
 }
