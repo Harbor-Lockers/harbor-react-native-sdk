@@ -17,4 +17,4 @@ HarborSDK.setAccessToken(session.sdkToken, Config.ENV);
 
 Before getting started with the SDK, you will need to integrate your backend with the Harbor Backend. This is required to connect and interact with the Harbor Towers.
 
-For steps on how to use the SDK to connect and interact with the tower, please refer to the [official documentation](https://docs.harborlockers.com/mobile_sdk.html#using-the-sdk)
+For steps on how to use the SDK to connect and interact with the tower, please refer to the [official documentation](https://docs.harborlockers.com/getting_started_with_sdk.html)
