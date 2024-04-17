@@ -27,6 +27,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.harborlockers.sdk.PublicInterface.HarborSDK;
 import com.harborlockers.sdk.PublicInterface.HarborSDKDelegate;
+import com.harborlockers.sdk.PublicInterface.HarborConnectionDelegate;
 import com.harborlockers.sdk.API.Environment;
 import com.harborlockers.sdk.API.SessionPermission;
 import com.harborlockers.sdk.Models.Tower;
@@ -35,13 +36,14 @@ import com.harborlockers.sdk.Utils.HarborLogCallback;
 
 import org.jetbrains.annotations.NotNull;
 
-public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implements HarborSDKDelegate, HarborLogCallback {
+public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implements HarborSDKDelegate, HarborLogCallback, HarborConnectionDelegate {
     public RCTHarborLockersSDKModule(ReactApplicationContext context) {
         super(context);
         reactContext = context;
         HarborSDK.INSTANCE.init(context.getApplicationContext());
     }
     private final ReactApplicationContext reactContext;
+    private final int SESSION_DURATION = 60*60*1;
     private Map<TowerId, Tower> foundTowers;
     private int listenerCount = 0;
     private boolean listenerCountActivated = false;
@@ -78,6 +80,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     @ReactMethod
     public void initializeSDK() {
         HarborSDK.INSTANCE.setDelegate(this);
+        HarborSDK.INSTANCE.setConnectionDelegate(this);
     }
 
     @ReactMethod
@@ -184,7 +187,17 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     //region ------ Session Commands ------
     @ReactMethod
     public void sendRequestSession(Integer role, Callback errorCallback, Callback successCallback) {
-        HarborSDK.INSTANCE.establishSession(null, 600, SessionPermission.values()[role], (success, error) -> {
+        sendHarborRequestSession(role, true, SESSION_DURATION, errorCallback, successCallback);
+    }
+
+    @ReactMethod
+    public void sendRequestSessionAdvanced(Boolean syncEnabled, Integer duration, Integer role, Callback errorCallback, Callback successCallback) {
+        sendHarborRequestSession(role, syncEnabled, duration, errorCallback, successCallback);
+    }
+
+    @ReactMethod
+    public void sendHarborRequestSession(Integer role, Boolean syncEnabled, Integer duration, Callback errorCallback, Callback successCallback) {
+        HarborSDK.INSTANCE.establishSession(null, duration, syncEnabled, SessionPermission.values()[role], (success, error) -> {
             if(!success) {
                 if (error != null) {
                     errorCallback.invoke(error.getErrorCode(), error.getErrorMessage());
@@ -218,21 +231,6 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     @ReactMethod
     public void sendSyncPushCommand(String payload, String payloadAuth) {
         HarborSDK.INSTANCE.sendSyncPush(byteArray(payload), byteArray(payloadAuth), null);
-    }
-
-    @ReactMethod
-    public void sendMarkSeenEventsCommand(double syncEventStart) {
-        HarborSDK.INSTANCE.sendMarkSeenEvents((int)syncEventStart, null);
-    }
-
-    @ReactMethod
-    public void sendResetEventCounterCommand(double syncEventStart) {
-        HarborSDK.INSTANCE.sendResetEventCounter((int)syncEventStart, null);
-    }
-
-    @ReactMethod
-    public void sendResetCommandCounterCommand(double syncCommandStart) {
-        HarborSDK.INSTANCE.sendResetCommandCounter((int)syncCommandStart, null);
     }
 
     @ReactMethod
@@ -310,8 +308,15 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
-    public void sendCheckAllLockerDoorsCommand() {
-        HarborSDK.INSTANCE.sendCheckAllLockerDoors(null);
+    public void sendCheckAllLockerDoorsCommand(Promise promise) {
+        HarborSDK.INSTANCE.sendCheckAllLockerDoors((lockerDoorStates, harborError) -> {
+            if (harborError == null) {
+                promise.resolve(hexString(lockerDoorStates));
+            } else {
+                promise.reject("check_all_locker_doors", "Error checking all locker doors");
+            }
+            return null;
+        });
     }
     //endregion
 
@@ -329,6 +334,8 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
                 WritableMap towerMap = Arguments.createMap();
                 towerMap.putString("towerId", hexString(tower.getTowerId()));
                 towerMap.putString("towerName", tower.getTowerName());
+                towerMap.putString("firmwareVersion", tower.getFwVersion());
+                towerMap.putInt("rssi", tower.getRSSI());
                 params.pushMap((ReadableMap) towerMap);
             } catch(InvalidTowerId ex) { /* If invalid tower id, avoid to add the tower to the array */ }
 
@@ -351,6 +358,22 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
             params.putMap("context", toWritableMap(context));
         }
         sendEvent(reactContext, "HarborLogged", params);
+    }
+    //endregion
+
+    //region ------ HarborConnectionDelegate methods ------
+    @Override
+    public void onTowerDisconnected(Tower tower) {
+        if(listenerCountActivated && listenerCount <= 0) {
+            return;
+        };
+        
+        WritableMap towerMap = Arguments.createMap();
+        towerMap.putString("towerId", hexString(tower.getTowerId()));
+        towerMap.putString("towerName", tower.getTowerName());
+        towerMap.putString("firmwareVersion", tower.getFwVersion());
+        towerMap.putInt("rssi", tower.getRSSI());
+        sendEvent(reactContext, "TowerDisconnected", towerMap);
     }
     //endregion
 
