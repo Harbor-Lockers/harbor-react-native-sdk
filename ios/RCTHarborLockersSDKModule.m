@@ -35,9 +35,56 @@
 }
 @end
 
-@interface RCTHarborLockersSDKModule() <HarborSDKDelegate, HarborLoggerDelegate>
+@interface ConnectPromiseHandler : NSObject
+
+@property (nonatomic, copy) RCTPromiseResolveBlock resolve;
+@property (nonatomic, copy) RCTPromiseRejectBlock reject;
+@property (nonatomic, strong) NSLock *lock;
+@property (nonatomic, assign) BOOL isActive;
+
+- (void)safelyRejectWithCode:(NSString *)code reason:(NSString *)reason error:(NSError *)error;
+- (void)safelyResolve:(id)response;
+
+@end
+
+@implementation ConnectPromiseHandler
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _lock = [[NSLock alloc] init];
+        _isActive = YES;
+    }
+    return self;
+}
+
+- (void)safelyRejectWithCode:(NSString *)code reason:(NSString *)reason error:(NSError *)error {
+    [self.lock lock];
+    if (self.isActive && self.reject) {
+        self.reject(code, reason, error);
+        // Ensure promise is only called once
+        self.isActive = NO;
+    }
+    [self.lock unlock];
+}
+
+- (void)safelyResolve:(id)response {
+    [self.lock lock];
+    if (self.isActive && self.resolve) {
+        self.resolve(response);
+        // Ensure promise is only called once
+        self.isActive = NO;
+    }
+    [self.lock unlock];
+}
+@end
+
+
+@interface RCTHarborLockersSDKModule() <HarborSDKDelegate, HarborLoggerDelegate, HarborConnectionDelegate>
 
 @property (nonatomic, strong) NSMutableDictionary * foundTowers;
+@property (nonatomic, strong) NSMutableDictionary * cachedTowers;
+@property (nonatomic, copy) dispatch_block_t dispatchBlock;
 
 @end
 
@@ -45,6 +92,13 @@
 {
   bool hasListeners;
 }
+
+const int SESSION_DURATION = 60*60*1;
+const int DISCOVERY_TIME_OUT = 20;
+ConnectPromiseHandler *connectPromiseHandler = nil;
+NSData * towerIdDiscovering;
+BOOL isDiscoveringToConnect = NO;
+BOOL returnTowerInfoInConnection = NO;
 
 // Will be called when this module's first listener is added.
 -(void)startObserving {
@@ -58,7 +112,7 @@
 
 - (NSArray<NSString *> *)supportedEvents
 {
-  return @[@"HarborLogged", @"TowersFound"];
+  return @[@"HarborLogged", @"TowersFound", @"TowerDisconnected"];
 }
 
 
@@ -85,7 +139,9 @@ RCT_EXPORT_MODULE(HarborLockersSDK);
 
 RCT_EXPORT_METHOD(initializeSDK)
 {
+  self.cachedTowers = [NSMutableDictionary new];
   [[HarborSDK shared] setDelegate:self];
+  [[HarborSDK shared] setConnectionDelegate:self];
 }
 
 RCT_EXPORT_METHOD(setLogLevel:(NSString *)logLevel)
@@ -117,8 +173,10 @@ RCT_EXPORT_METHOD(syncConnectedTower:(RCTPromiseResolveBlock)resolve
 }
 
 RCT_EXPORT_METHOD(startTowersDiscovery) {
+  if (isDiscoveringToConnect) {
+    return;
+  }
   self.foundTowers = [NSMutableDictionary new];
-  RCTLog(@"Start devices discovery");
   [[HarborSDK shared] startTowerDiscovery];
 }
 
@@ -126,30 +184,15 @@ RCT_EXPORT_METHOD(connectToTowerWithIdentifier: (NSString *)towerId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-  if(![towerId isValidTowerId]) {
-    reject(@"invalid_tower_id", @"Tower Id should be an String with 16 hexadecimal characters", nil);
-    return;
-  }
+  [self connectToTowerWithIdentifierAndTimeout:towerId discoveryTimeOut:DISCOVERY_TIME_OUT shouldReturnTowerInfo:NO resolver:resolve rejecter:reject];
+}
 
-  NSData *towerIdData = [[NSData new] initWithHexString:towerId];
-  if (towerIdData == nil) {
-    reject(@"invalid_tower_id", @"Invalid tower id", nil);
-    return;
-  }
-  
-  Tower * towerToConnect = self.foundTowers[towerIdData];
-  if (towerToConnect == nil) {
-    reject(@"tower_not_found", @"Tower not found", nil);
-    return;
-  }
-  
-  [[HarborSDK shared] connectToTower:towerToConnect completion:^(NSString * _Nullable name, NSError * _Nullable error) {
-    if([name length] > 0) {
-      resolve(@[name]);
-    } else if(error != nil) {
-      reject([NSString stringWithFormat:@"%ld", error.code], @"Error connecting to a device", error);
-    }
-  }];
+RCT_EXPORT_METHOD(connectToTower: (NSString *)towerId
+                  discoveryTimeOut: (NSInteger)timeOut
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  [self connectToTowerWithIdentifierAndTimeout:towerId discoveryTimeOut:timeOut shouldReturnTowerInfo:YES resolver:resolve rejecter:reject];
 }
 
 // MARK: - API Methods -
@@ -187,20 +230,6 @@ RCT_EXPORT_METHOD(setAccessToken: (NSString *)token
   [[HarborSDK shared] setAccessToken:token];
 }
 
-RCT_EXPORT_METHOD(downloadTowerConfigurationWithResolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  [[HarborSDK shared] downloadTowerConfigurationWithCompletion:^(BOOL success) {
-    if(success) {
-      resolve(@[@(YES), @"success"]);
-    } else {
-      reject([NSString stringWithFormat:@"%@", @(NO)],
-             @"\nError downloading tower configuration",
-             nil);
-    }
-  }];
-}
-
 - (void)configureSDKEnvironment:(NSString * _Nullable)environment 
 {
   if ([environment hasPrefix:@"http://"] || [environment hasPrefix:@"https://"]) {
@@ -222,8 +251,27 @@ RCT_EXPORT_METHOD(sendRequestSession:(NSNumber * _Nonnull)role
                   errorCallback: (RCTResponseSenderBlock)errorCallback
                   successCallback: (RCTResponseSenderBlock)successCallback)
 {
+    [self sendHarborRequestSession: role syncEnabled: YES duration: SESSION_DURATION errorCallback: errorCallback successCallback: successCallback];
+}
+
+RCT_EXPORT_METHOD(sendRequestSessionAdvanced: (NSNumber * _Nonnull)syncEnabled
+                  duration: (NSInteger)duration
+                  role: (NSNumber * _Nonnull)role
+                  errorCallback: (RCTResponseSenderBlock)errorCallback
+                  successCallback: (RCTResponseSenderBlock)successCallback)
+{
+    [self sendHarborRequestSession: role syncEnabled: syncEnabled.boolValue duration: duration errorCallback: errorCallback successCallback: successCallback];
+}
+
+RCT_EXPORT_METHOD(sendHarborRequestSession:(NSNumber * _Nonnull)role
+                  syncEnabled:(BOOL)syncEnabled
+                  duration: (NSInteger)duration
+                  errorCallback: (RCTResponseSenderBlock)errorCallback
+                  successCallback: (RCTResponseSenderBlock)successCallback)
+{
   [[HarborSDK shared] establishSessionWithTowerId:nil
-                                      duration:600
+                                      duration: duration
+                                      automaticSyncEnabled:syncEnabled
                             sessionPermissions:role.integerValue
                              completionHandler:^(BOOL success,
                                                  NSError * _Nullable error) {
@@ -272,24 +320,6 @@ RCT_EXPORT_METHOD(sendSyncPushCommand:(NSString *)payload
   [[HarborSDK shared] sendSyncPushWithPayload:payloadData
                                payloadAuth:payloadAuthData
                          completionHandler:nil];
-}
-
-RCT_EXPORT_METHOD(sendMarkSeenEventsCommand:(NSNumber * _Nonnull)syncEventStart)
-{
-  [[HarborSDK shared] sendMarkSeenEventsWithSyncEventStart:syncEventStart.unsignedIntValue
-                                      completionHandler:nil];
-}
-
-RCT_EXPORT_METHOD(sendResetEventCounterCommand:(NSNumber * _Nonnull)syncEventStart)
-{
-  [[HarborSDK shared] sendResetEventCounterWithSyncEventStart:syncEventStart.unsignedIntValue
-                                         completionHandler:nil];
-}
-
-RCT_EXPORT_METHOD(sendResetCommandCounterCommand:(NSNumber * _Nonnull)syncCommandStart)
-{
-  [[HarborSDK shared] sendResetCommandCounterWithSyncCommandStart:syncCommandStart.unsignedIntValue
-                                             completionHandler:nil];
 }
 
 RCT_EXPORT_METHOD(sendAddClientEventCommand:(NSString * _Nonnull)clientInfo)
@@ -404,13 +434,17 @@ RCT_EXPORT_METHOD(sendTapLockerCommand:(NSNumber * _Nonnull)lockerTapInterval
                                       completionHandler:nil];
 }
 
-RCT_EXPORT_METHOD(sendCheckAllLockerDoorsCommand)
+RCT_EXPORT_METHOD(sendCheckAllLockerDoorsCommand: (RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendCheckAllLockerDoorsWithCompletionHandler:^(NSData * _Nullable lockerDoorStates, NSError * _Nullable error) {
-    
+    if (error == nil) {
+      resolve(@[[lockerDoorStates hexString]]);
+    } else {
+      reject(@"check_all_locker_doors", @"Error checking all locker doors", nil);
+    }
   }];
 }
-
 
 // MARK: - HarborSDKDelegate methods -
 
@@ -418,10 +452,20 @@ RCT_EXPORT_METHOD(sendCheckAllLockerDoorsCommand)
   NSMutableArray * towersInfo = [NSMutableArray new];
   for(Tower * tower in towers) {
     self.foundTowers[tower.towerId] = tower;
-    NSDictionary * towerInfo = @{@"towerId" : [[tower towerId] hexString],
-                                 @"towerName" : [tower towerName],
-    };
-    [towersInfo addObject:towerInfo];
+    self.cachedTowers[tower.towerId] = tower;
+    if (hasListeners) {
+      NSDictionary * towerInfo = @{@"towerId" : [[tower towerId] hexString],
+                                   @"towerName" : [tower towerName],
+                                   @"firmwareVersion" : [tower firmwareVersion],
+                                   @"rssi" : [tower RSSI],
+      };
+      [towersInfo addObject:towerInfo];
+    }
+
+    if (isDiscoveringToConnect && [tower.towerId isEqualToData: towerIdDiscovering]) {
+      [self didFinishDiscoveryToConnect];
+      [self connectToHarborTower:tower];
+    }
   }
   if (hasListeners) {
     [self sendEventWithName:@"TowersFound" body:towersInfo];
@@ -439,6 +483,110 @@ RCT_EXPORT_METHOD(sendCheckAllLockerDoorsCommand)
     if (hasListeners) {
       [self sendEventWithName:@"HarborLogged" body:response];
     }
+}
+
+// MARK: - HarborConnectionDelegate methods -
+
+- (void)harborDidDisconnectTower:(Tower*)tower {
+  if (hasListeners) {
+    NSDictionary * towerInfo = @{@"towerId" : [[tower towerId] hexString],
+                                 @"towerName" : [tower towerName],
+                                 @"firmwareVersion" : [tower firmwareVersion],
+                                 @"rssi" : [tower RSSI],
+    };
+    [self sendEventWithName:@"TowerDisconnected" body:towerInfo];
+  }
+}
+
+
+// MARK: - Connect to tower - helpers -
+
+-(void) connectToTowerWithIdentifierAndTimeout: (NSString *)towerId
+                  discoveryTimeOut: (NSInteger)timeOut
+                  shouldReturnTowerInfo:(BOOL)returnTowerInfo
+                  resolver: (RCTPromiseResolveBlock)resolve
+                  rejecter: (RCTPromiseRejectBlock)reject
+{
+  if (isDiscoveringToConnect) {
+    reject(@"already_in_discovery", @"Already discovering towers to connect", nil);
+  }
+
+  if(![towerId isValidTowerId]) {
+    reject(@"invalid_tower_id", @"Tower Id should be an String with 16 hexadecimal characters", nil);
+    return;
+  }
+
+  NSData *towerIdData = [[NSData new] initWithHexString:towerId];
+  if (towerIdData == nil) {
+    reject(@"invalid_tower_id", @"Invalid tower id", nil);
+    return;
+  }
+
+  returnTowerInfoInConnection = returnTowerInfo;
+  connectPromiseHandler = [[ConnectPromiseHandler alloc] init];
+  connectPromiseHandler.resolve = resolve;
+  connectPromiseHandler.reject = reject;
+
+  Tower* towerToConnect = self.cachedTowers[towerIdData];
+  if (towerToConnect) {
+    [self connectToHarborTower:towerToConnect];
+    return;
+  }
+
+  [self discoverAndConnect:towerIdData discoveryTimeOut:timeOut];
+}
+
+-(void) connectToHarborTower: (Tower *)towerToConnect
+{
+  [[HarborSDK shared] connectToTower:towerToConnect completion:^(NSString * _Nullable name, NSError * _Nullable error) {
+    if(connectPromiseHandler) {
+      if([name length] > 0) {
+        if(returnTowerInfoInConnection) {
+          NSDictionary * towerInfo = @{@"towerId" : [[towerToConnect towerId] hexString],
+                                       @"towerName" : [towerToConnect towerName],
+                                       @"firmwareVersion" : [towerToConnect firmwareVersion],
+                                       @"rssi" : [towerToConnect RSSI]};
+          [connectPromiseHandler safelyResolve:towerInfo];
+        } else {
+          [connectPromiseHandler safelyResolve:@[name]];
+        }
+      } else if(error != nil) {
+        [connectPromiseHandler safelyRejectWithCode:[NSString stringWithFormat:@"%ld", error.code] reason:@"Error connecting to a device" error:error];
+      }
+    }
+  }];
+}
+
+-(void) discoverAndConnect: (NSData *) towerIdData
+                  discoveryTimeOut: (NSInteger)timeOut
+{
+  isDiscoveringToConnect = YES;
+  towerIdDiscovering = towerIdData;
+  [[HarborSDK shared] startTowerDiscovery];
+
+  __weak typeof(self) weakSelf = self;
+  self.dispatchBlock = dispatch_block_create(DISPATCH_BLOCK_DETACHED, ^{
+      __strong typeof(weakSelf) strongSelf = weakSelf;
+      if (strongSelf) {
+        if (strongSelf.dispatchBlock) {
+          [strongSelf didFinishDiscoveryToConnect];
+        }
+        if (connectPromiseHandler) {
+          [connectPromiseHandler safelyRejectWithCode:@"discovery_timeout" reason:@"Discovery timeout, tower not found" error:nil];
+        }
+      }
+  });
+
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeOut * NSEC_PER_SEC)), dispatch_get_main_queue(), self.dispatchBlock);
+}
+
+-(void) didFinishDiscoveryToConnect
+{
+  if (self.dispatchBlock) {
+    dispatch_block_cancel(self.dispatchBlock);
+  }
+  isDiscoveringToConnect = NO;
+  towerIdDiscovering = nil;
 }
 
 @end
