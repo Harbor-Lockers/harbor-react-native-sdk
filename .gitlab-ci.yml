@@ -15,7 +15,7 @@ lint_check:
 validate:
   stage: validate
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$/'
   script:
     - |
       # Install jq to parse package.json
@@ -26,7 +26,7 @@ validate:
       PACKAGE_VERSION=$(jq -r .version package.json)
       
       # Compare the tag version with the package version
-      if [ "$CI_COMMIT_TAG" != "v$PACKAGE_VERSION" ]; then
+      if [ "$CI_COMMIT_TAG" != "$PACKAGE_VERSION" ]; then
         echo "Error: Tag version ($CI_COMMIT_TAG) does not match package version ($PACKAGE_VERSION)";
         exit 1;
       else
@@ -36,7 +36,7 @@ validate:
 push_tag_to_github:
   stage: push-to-github
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$/'
   variables:
     GIT_STRATEGY: clone
   script:
@@ -74,7 +74,7 @@ push_to_github_master:
 npm_publish:
   stage: publish
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$/'
   script:
     - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
     - npm publish --access=public
