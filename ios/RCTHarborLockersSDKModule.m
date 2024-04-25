@@ -93,6 +93,15 @@
   bool hasListeners;
 }
 
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _foundTowers = [NSMutableDictionary new];
+        _cachedTowers = [NSMutableDictionary new];
+    }
+    return self;
+}
+
 const int SESSION_DURATION = 60*60*1;
 const int DISCOVERY_TIME_OUT = 20;
 ConnectPromiseHandler *connectPromiseHandler = nil;
@@ -139,7 +148,7 @@ RCT_EXPORT_MODULE(HarborLockersSDK);
 
 RCT_EXPORT_METHOD(initializeSDK)
 {
-  self.cachedTowers = [NSMutableDictionary new];
+  self.foundTowers = [NSMutableDictionary new];
   [[HarborSDK shared] setDelegate:self];
   [[HarborSDK shared] setConnectionDelegate:self];
 }
