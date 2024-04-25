@@ -1,6 +1,8 @@
 package com.reactlibrary;
 
 import android.util.Log;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -20,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
@@ -44,7 +47,15 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
     private final ReactApplicationContext reactContext;
     private final int SESSION_DURATION = 60*60*1;
-    private Map<TowerId, Tower> foundTowers;
+    private final int DISCOVERY_TIME_OUT = 20;
+    private PromiseHandler promiseHandler = null;
+    private TowerId towerIdDiscovering = null;
+    private boolean isDiscoveringToConnect = false;
+    private boolean returnTowerInfoInConnection = false;
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+
+    private Map<TowerId, Tower> foundTowers = new HashMap<>();
+    private Map<TowerId, Tower> cachedTowers = new HashMap<>();
     private int listenerCount = 0;
     private boolean listenerCountActivated = false;
 
@@ -79,6 +90,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
 
     @ReactMethod
     public void initializeSDK() {
+        foundTowers = new HashMap<>();
         HarborSDK.INSTANCE.setDelegate(this);
         HarborSDK.INSTANCE.setConnectionDelegate(this);
     }
@@ -110,40 +122,21 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
 
     @ReactMethod
     public void startTowersDiscovery() {
+        if (isDiscoveringToConnect) {
+            return;
+        }
         foundTowers = new HashMap<>();
         HarborSDK.INSTANCE.startTowerDiscovery();
     }
 
     @ReactMethod
     public void connectToTowerWithIdentifier(String towerIdString, Promise promise) {
-        TowerId towerId = null;
-        try {
-            towerId = new TowerId(towerIdString);
-        } catch(InvalidTowerId ex) {
-            promise.reject("invalid_tower_id", ex);
-            return;
-        } catch(Exception ex) {
-            promise.reject("invalid_tower_id", "Tower Id should be an String with 16 hexadecimal characters");
-            return;
-        }
+        connectToTowerWithIdentifierAndTimeout(towerIdString, DISCOVERY_TIME_OUT, false, promise);
+    }
 
-        Tower towerToConnect = foundTowers.get(towerId);
-        if (towerToConnect == null) {
-            promise.reject("tower_not_found", "Tower not found");
-            return;
-        }
-
-        HarborSDK.INSTANCE.connectToTower(towerToConnect, (towerName, error) -> {
-            if (error == null) {
-                WritableArray connectedTowerParam = Arguments.createArray();
-                connectedTowerParam.pushString(towerName);
-                promise.resolve(connectedTowerParam);
-            } else {
-                promise.reject(String.valueOf(1), error.getMessage());
-            }
-            return null;
-        });
-
+    @ReactMethod
+    public void connectToTower(String towerIdString, Integer discoveryTimeOut, Promise promise) {
+        connectToTowerWithIdentifierAndTimeout(towerIdString, discoveryTimeOut, true, promise);
     }
     //endregion
 
@@ -323,24 +316,30 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     //region ------ HarborSDKDelegate methods ------
     @Override
     public void harborDidDiscoverTowers(@NotNull List<Tower> towers) {
-        if(listenerCountActivated && listenerCount <= 0) {
-            return;
-        }
-
         WritableArray params = Arguments.createArray();
         for (Tower tower : towers) {
             try {
-                foundTowers.put(new TowerId(tower.getTowerId()), tower);
-                WritableMap towerMap = Arguments.createMap();
-                towerMap.putString("towerId", hexString(tower.getTowerId()));
-                towerMap.putString("towerName", tower.getTowerName());
-                towerMap.putString("firmwareVersion", tower.getFwVersion());
-                towerMap.putInt("rssi", tower.getRSSI());
-                params.pushMap((ReadableMap) towerMap);
+                TowerId towerId = new TowerId(tower.getTowerId());
+                foundTowers.put(towerId, tower);
+                cachedTowers.put(towerId, tower);
+                if (listenerCount > 0) {
+                    WritableMap towerMap = Arguments.createMap();
+                    towerMap.putString("towerId", hexString(tower.getTowerId()));
+                    towerMap.putString("towerName", tower.getTowerName());
+                    towerMap.putString("firmwareVersion", tower.getFwVersion());
+                    towerMap.putInt("rssi", tower.getRSSI());
+                    params.pushMap((ReadableMap) towerMap);
+                }
+                if (isDiscoveringToConnect && towerId.equals(towerIdDiscovering)) {
+                    didFinishDiscoveryToConnect();
+                    connectToHarborTower(tower);
+                }
             } catch(InvalidTowerId ex) { /* If invalid tower id, avoid to add the tower to the array */ }
 
         }
-        sendEvent(reactContext, "TowersFound", params);
+        if (listenerCount > 0) {
+            sendEvent(reactContext, "TowersFound", params);
+        }
     }
     //endregion
 
@@ -367,7 +366,7 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
         if(listenerCountActivated && listenerCount <= 0) {
             return;
         };
-        
+
         WritableMap towerMap = Arguments.createMap();
         towerMap.putString("towerId", hexString(tower.getTowerId()));
         towerMap.putString("towerName", tower.getTowerName());
@@ -376,6 +375,89 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
         sendEvent(reactContext, "TowerDisconnected", towerMap);
     }
     //endregion
+
+    //region ------ Connect to tower helper methods ------
+    private void connectToTowerWithIdentifierAndTimeout(String towerIdString, Integer discoveryTimeOut, Boolean shouldReturnTowerInfo, Promise promise) {
+        if (isDiscoveringToConnect) {
+            promise.reject("already_in_discovery", "Already discovering towers to connect");
+        }
+        TowerId towerId = null;
+        try {
+            towerId = new TowerId(towerIdString);
+        } catch(InvalidTowerId ex) {
+            promise.reject("invalid_tower_id", ex);
+            return;
+        } catch(Exception ex) {
+            promise.reject("invalid_tower_id", "Tower Id should be an String with 16 hexadecimal characters");
+            return;
+        }
+        returnTowerInfoInConnection = shouldReturnTowerInfo;
+        promiseHandler = new PromiseHandler(promise);
+        Tower towerToConnect = cachedTowers.get(towerId);
+        if (towerToConnect != null) {
+            connectToHarborTower(towerToConnect);
+            return;
+        }
+
+        discoverAndConnect(towerId, discoveryTimeOut);
+    }
+
+    private void connectToHarborTower(Tower towerToConnect) {
+        HarborSDK.INSTANCE.connectToTower(towerToConnect, (towerName, error) -> {
+
+            if (promiseHandler == null) {
+                return null;
+            }
+
+            if (error != null) {
+                promiseHandler.safelyRejectWithCode(String.valueOf(1), error.getMessage());
+                return null;
+            }
+
+            if (towerName == null) {
+                return null;
+            }
+
+            WritableArray params = Arguments.createArray();
+            if (returnTowerInfoInConnection) {
+                WritableMap towerMap = Arguments.createMap();
+                towerMap.putString("towerId", hexString(towerToConnect.getTowerId()));
+                towerMap.putString("towerName", towerToConnect.getTowerName());
+                towerMap.putString("firmwareVersion", towerToConnect.getFwVersion());
+                towerMap.putInt("rssi", towerToConnect.getRSSI());
+                params.pushMap((ReadableMap) towerMap);
+            } else {
+                params.pushString(towerName);
+            }
+            promiseHandler.safelyResolve(params);
+
+            return null;
+        });
+    }
+
+    private void discoverAndConnect(TowerId towerId, Integer discoveryTimeOut) {
+        isDiscoveringToConnect = true;
+        towerIdDiscovering = towerId;
+        HarborSDK.INSTANCE.startTowerDiscovery();
+
+        timeoutHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isDiscoveringToConnect) {
+                    didFinishDiscoveryToConnect(); // Cancel discovery
+                    promiseHandler.safelyRejectWithCode("discovery_timeout", "Discovery timeout, tower not found");
+                }
+            }
+        }, discoveryTimeOut * 1000);
+    }
+
+    private void didFinishDiscoveryToConnect() {
+        timeoutHandler.removeCallbacksAndMessages(null);
+        isDiscoveringToConnect = false;
+        towerIdDiscovering = null;
+    }
+    //endregion
+
 
     //region ------ Helper methods ------
     public static WritableMap toWritableMap(Map<String, ?> map) {
@@ -534,5 +616,27 @@ class TowerId extends ByteArrayKey {
 class InvalidTowerId extends Exception {
     public InvalidTowerId(String errorMessage) {
         super(errorMessage);
+    }
+}
+
+class PromiseHandler {
+    private Promise promise;
+    private AtomicBoolean isActive;
+
+    public PromiseHandler(Promise promise) {
+        isActive = new AtomicBoolean(true);
+        this.promise = promise;
+    }
+
+    public void safelyRejectWithCode(String code, String reason) {
+        if (isActive.getAndSet(false) && promise != null) {
+            promise.reject(code, reason);
+        }
+    }
+
+    public void safelyResolve(Object response) {
+        if (isActive.getAndSet(false) && promise != null) {
+            promise.resolve(response);
+        }
     }
 }
