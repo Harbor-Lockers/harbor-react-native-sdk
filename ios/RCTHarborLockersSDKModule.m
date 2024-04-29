@@ -446,18 +446,6 @@ RCT_EXPORT_METHOD(sendTapLockerCommand:(NSNumber * _Nonnull)lockerTapInterval
                                       completionHandler:nil];
 }
 
-RCT_EXPORT_METHOD(sendCheckAllLockerDoorsCommand: (RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  [[HarborSDK shared] sendCheckAllLockerDoorsWithCompletionHandler:^(NSData * _Nullable lockerDoorStates, NSError * _Nullable error) {
-    if (error == nil) {
-      resolve(@[[lockerDoorStates hexString]]);
-    } else {
-      reject(@"check_all_locker_doors", @"Error checking all locker doors", nil);
-    }
-  }];
-}
-
 // MARK: - HarborSDKDelegate methods -
 
 - (void)harborDidDiscoverTowers:(NSArray<Tower *> *)towers {

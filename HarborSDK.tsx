@@ -70,7 +70,6 @@ interface HarborLockersSDKInterface {
     keypadNextAvailable: boolean
   ): void;
   sendTapLockerCommand(lockerTapInterval: number, lockerTapCount: number): void;
-  sendCheckAllLockerDoorsCommand(): Promise<number>;
 }
 
 export default HarborLockersSDK as HarborLockersSDKInterface;

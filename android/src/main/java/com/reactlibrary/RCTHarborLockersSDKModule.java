@@ -300,17 +300,6 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
         HarborSDK.INSTANCE.sendTapLocker((int)lockerTapIntervalMS, (int)lockerTapCount, null);
     }
 
-    @ReactMethod
-    public void sendCheckAllLockerDoorsCommand(Promise promise) {
-        HarborSDK.INSTANCE.sendCheckAllLockerDoors((lockerDoorStates, harborError) -> {
-            if (harborError == null) {
-                promise.resolve(hexString(lockerDoorStates));
-            } else {
-                promise.reject("check_all_locker_doors", "Error checking all locker doors");
-            }
-            return null;
-        });
-    }
     //endregion
 
     //region ------ HarborSDKDelegate methods ------
