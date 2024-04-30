@@ -175,7 +175,7 @@ RCT_EXPORT_METHOD(syncConnectedTower:(RCTPromiseResolveBlock)resolve
   [[HarborSDK shared] syncWithCompletionHandler:^(BOOL success, NSError * _Nullable error) {
     BOOL syncCompleted = success;
     if(syncCompleted) {
-      resolve(@[@(syncCompleted)]);
+      resolve(@(syncCompleted));
     } else if(error != nil) {
       reject([NSString stringWithFormat:@"%ld", error.code], @"Sync connected tower failed", error);
     } else {
