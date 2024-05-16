@@ -10,11 +10,6 @@ interface HarborLockersSDKInterface {
   setLogLevel(logLevel: string): void;
   isSyncing(callback: (isSyncing: boolean) => void): void;
   syncConnectedTower(): Promise<number>;
-  loginWithEmail(
-    email: string,
-    password: string,
-    environment: string
-  ): Promise<number>;
   setAccessToken(token: string, environment?: string): void;
   startTowersDiscovery(): void;
   connectToTowerWithIdentifier(

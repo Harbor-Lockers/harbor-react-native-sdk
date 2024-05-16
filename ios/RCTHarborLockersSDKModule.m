@@ -209,30 +209,6 @@ RCT_EXPORT_METHOD(connectToTower: (NSString *)towerId
 
 // MARK: - API Methods -
 
-RCT_EXPORT_METHOD(loginWithEmail: (NSString *)email
-                  password: (NSString *)password
-                  environment: (NSString *)environment
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  [self configureSDKEnvironment:environment];
-  [[HarborSDK shared] loginWithEmail:email
-                         password:password
-                       completion:^(NSInteger responseCode, NSError * _Nullable error) {
-    if(responseCode == 200) {
-      resolve(@[@(responseCode), @"success"]);
-    } else if(error != nil) {
-      reject([NSString stringWithFormat:@"%ld", responseCode],
-             [NSString stringWithFormat: @"%@\nError loggin in. Response Code: %ld", error.localizedDescription, responseCode],
-             error);
-    } else {
-      reject([NSString stringWithFormat:@"%ld", responseCode],
-             [NSString stringWithFormat: @"%@\nError loggin in. Response Code: %ld", @"Unknown Error", responseCode],
-             error);
-    }
-  }];
-}
-
 RCT_EXPORT_METHOD(setAccessToken: (NSString *)token
                   environment: (NSString * _Nullable)environment)
 {

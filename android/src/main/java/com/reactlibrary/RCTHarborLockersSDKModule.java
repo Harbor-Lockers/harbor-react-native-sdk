@@ -142,19 +142,6 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
 
     //region ------ API Methods ------
     @ReactMethod
-    public void loginWithEmail(String email, String password, String environment, Promise promise) {
-        configureSDKEnvironment(environment);
-        HarborSDK.INSTANCE.loginWithEmail(email, password, (resultCode, error, apiError) -> {
-            if (apiError == null) {
-                promise.resolve(resultCode);
-            } else {
-                promise.reject(String.valueOf(resultCode), apiError.getErrorMessage());
-            }
-            return null;
-        });
-    }
-
-    @ReactMethod
     public void setAccessToken(String token, @Nullable String environment) {
         if (environment != null) {
             configureSDKEnvironment(environment);
