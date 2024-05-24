@@ -275,64 +275,127 @@ RCT_EXPORT_METHOD(sendHarborRequestSession:(NSNumber * _Nonnull)role
   }];
 }
 
-RCT_EXPORT_METHOD(sendTerminateSession:(NSNumber * _Nonnull)errorCode errorMessage:(NSString * _Nullable)errorMessage)
+RCT_EXPORT_METHOD(sendTerminateSession:(NSNumber * _Nonnull)errorCode 
+                  errorMessage:(NSString * _Nullable)errorMessage
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendTerminateSessionWithErrorCode:errorCode.integerValue
-                                        errorMessage:errorMessage
-                    disconnectAfterSessionTerminated:true
-                                   completionHandler:nil];
+                                           errorMessage:errorMessage
+                       disconnectAfterSessionTerminated:true
+                                      completionHandler:^(BOOL success, NSError * _Nullable error) {
+      if (error == nil) {
+        resolve(@(success));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
+  }];
 }
 
 // MARK: - Sync events commands -
 
-RCT_EXPORT_METHOD(sendRequestSyncStatusCommand)
+RCT_EXPORT_METHOD(sendRequestSyncStatusCommand:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendRequestSyncStatusWithCompletionHandler:^(NSInteger syncEventStart, NSInteger syncEventCount, NSInteger syncCommandStart, NSError * _Nullable error) {
-    
+      if (error == nil) {
+        NSDictionary * syncResponse = @{@"syncEventStart" : @(syncEventStart),
+                                        @"syncEventCount" : @(syncEventCount),
+                                        @"syncCommandStart" : @(syncCommandStart)};
+        resolve(syncResponse);
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
   }];
 }
 
-RCT_EXPORT_METHOD(sendSyncPullCommand:(NSNumber * _Nonnull)syncEventStart)
+RCT_EXPORT_METHOD(sendSyncPullCommand:(NSNumber * _Nonnull)syncEventStart
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendSyncPullWithSyncEventStart:syncEventStart.unsignedIntValue
                                 completionHandler:^(NSInteger firstEventId, NSInteger syncEventCount, NSData * _Nonnull payload, NSData * _Nonnull payloadAuth, NSError * _Nullable error) {
-    
+      if (error == nil) {
+        NSDictionary * syncResponse = @{@"firstEventId" : @(firstEventId),
+                                          @"syncEventCount" : @(syncEventCount),
+                                          @"payload" : [payload hexString],
+                                          @"payloadAuth" : [payloadAuth hexString]};
+        resolve(syncResponse);
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
   }];
 }
 
 RCT_EXPORT_METHOD(sendSyncPushCommand:(NSString *)payload
-                  payloadAuth:(NSString *)payloadAuth)
+                  payloadAuth:(NSString *)payloadAuth
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * payloadData = [[NSData alloc] initWithHexString:payload];
   NSData * payloadAuthData = [[NSData alloc] initWithHexString:payloadAuth];
   [[HarborSDK shared] sendSyncPushWithPayload:payloadData
                                payloadAuth:payloadAuthData
-                         completionHandler:nil];
+                            completionHandler:^(BOOL success, NSError * _Nullable error) {
+      if (error == nil) {
+        resolve(@(success));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
+  }];
 }
 
-RCT_EXPORT_METHOD(sendAddClientEventCommand:(NSString * _Nonnull)clientInfo)
+RCT_EXPORT_METHOD(sendAddClientEventCommand:(NSString * _Nonnull)clientInfo
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * clientInfoData = [[NSData alloc] initWithHexString:clientInfo];
   [[HarborSDK shared] sendAddClientEventWithClientInfo:clientInfoData
-                                  completionHandler:nil];
+                                     completionHandler:^(BOOL success, NSError * _Nullable error) {
+      if (error == nil) {
+        resolve(@(success));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
+  }];
 }
 
 // MARK: - Locker commands -
 
-RCT_EXPORT_METHOD(sendFindAvailableLockersCommand)
+RCT_EXPORT_METHOD(sendFindAvailableLockersCommand:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendFindAvailableLockersWithCompletionHandler:^(NSDictionary<NSNumber *,NSNumber *> * _Nullable availableLockers, NSError * _Nullable error) {
-    
+      if (error == nil) {
+        if (availableLockers == nil) {
+          resolve(@{});
+        } else {
+          resolve(availableLockers);
+        }
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
   }];
 }
 
-RCT_EXPORT_METHOD(sendFindLockersWithTokenCommand:(NSString *)matchToken matchAvailable:(NSNumber * _Nonnull)matchAvailable)
+RCT_EXPORT_METHOD(sendFindLockersWithTokenCommand:(NSString *)matchToken 
+                  matchAvailable:(NSNumber * _Nonnull)matchAvailable
+                  resolver: (RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * matchTokenData = [[NSData alloc] initWithHexString:matchToken];
   [[HarborSDK shared] sendFindLockersWithTokenWithMatchAvailable:matchAvailable.boolValue
                                                    matchToken:matchTokenData
                                             completionHandler:^(NSDictionary<NSNumber *,NSNumber *> * _Nullable availableLockers, NSError * _Nullable error) {
-    
+      if (error == nil) {
+        if (availableLockers == nil) {
+          resolve(@{});
+        } else {
+          resolve(availableLockers);
+        }
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
   }];
 }
 
@@ -348,7 +411,7 @@ RCT_EXPORT_METHOD(sendOpenLockerWithTokenCommand:(NSString *)payload
                                           payloadAuth:payloadAuthData
                                     completionHandler:^(NSInteger lockerId, NSError * _Nullable error) {
     if (error == nil) {
-      resolve(@[@(lockerId)]);
+      resolve(@(lockerId));
     } else {
       reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
     }
@@ -360,7 +423,9 @@ RCT_EXPORT_METHOD(sendOpenAvailableLockerCommand:(NSString * _Nonnull)lockerToke
                   clientInfo:(NSString * _Nonnull)clientInfo
                   matchLockerType:(NSNumber * _Nonnull)matchLockerType
                   matchAvailable:(NSNumber * _Nonnull) matchAvailable
-                  matchToken:(NSString * _Nullable)matchToken)
+                  matchToken:(NSString * _Nullable)matchToken
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * matchTokenData;
   if(matchToken != nil) {
@@ -376,14 +441,23 @@ RCT_EXPORT_METHOD(sendOpenAvailableLockerCommand:(NSString * _Nonnull)lockerToke
                                               lockerAvailable:lockerAvailable.boolValue
                                                    clientInfo:clientInfoData
                                             completionHandler:^(NSInteger lockerId, NSError * _Nullable error) {
-    
+      if (error == nil) {
+        resolve(@(lockerId));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
   }];
 }
 
-RCT_EXPORT_METHOD(sendReopenLockerCommand)
+RCT_EXPORT_METHOD(sendReopenLockerCommand:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendReopenLockerWithCompletionHandler:^(NSInteger lockerId, NSError * _Nullable error) {
-    
+      if (error == nil) {
+        resolve(@(lockerId));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
   }];
 }
 
@@ -394,32 +468,56 @@ RCT_EXPORT_METHOD(sendCheckLockerDoorCommand:(RCTResponseSenderBlock)callback)
   }];
 }
 
-RCT_EXPORT_METHOD(sendRevertLockerStateCommand:(NSString * _Nonnull)clientInfo)
+RCT_EXPORT_METHOD(sendRevertLockerStateCommand:(NSString * _Nonnull)clientInfo
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * clientInfoData = [[NSData alloc] initWithHexString:clientInfo];
   [[HarborSDK shared] sendRevertLockerStateWithClientInfo:clientInfoData
-                                     completionHandler:nil];
+                                        completionHandler:^(BOOL success, NSError * _Nullable error) {
+      if (error == nil) {
+        resolve(@(success));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
+  }];
 }
 
 RCT_EXPORT_METHOD(sendSetKeypadCodeCommand:(NSString * _Nonnull)keypadCode
                   keypadCodePersists:(NSNumber * _Nonnull)keypadCodePersists
                   keypadNexttoken:(NSString * _Nonnull)keypadNextToken
-                  keypadNextAvailable:(NSNumber * _Nonnull)keypadNextAvailable)
+                  keypadNextAvailable:(NSNumber * _Nonnull)keypadNextAvailable
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   NSData * keypadNextTokenData = [[NSData alloc] initWithHexString:keypadNextToken];
   [[HarborSDK shared] sendSetKeypadCodeWithKeypadCode:keypadCode
                                 keypadCodePersists:keypadCodePersists.boolValue
                                    keypadNextToken:keypadNextTokenData
                                keypadNextAvailable:keypadNextAvailable.boolValue
-                                 completionHandler:nil];
+                                    completionHandler:^(BOOL success, NSError * _Nullable error) {
+      if (error == nil) {
+        resolve(@(success));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
+  }];
 }
 
 RCT_EXPORT_METHOD(sendTapLockerCommand:(NSNumber * _Nonnull)lockerTapInterval
-                  lockerTapCount:(NSNumber * _Nonnull)lockerTapCount)
+                  lockerTapCount:(NSNumber * _Nonnull)lockerTapCount
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   [[HarborSDK shared] sendTapLockerWithLockerTapIntervalMS:lockerTapInterval.integerValue
                                          lockerTapCount:lockerTapCount.integerValue
-                                      completionHandler:nil];
+                                         completionHandler:^(BOOL success, NSError * _Nullable error) {
+      if (error == nil) {
+        resolve(@(success));
+      } else {
+        reject([NSString stringWithFormat:@"%ld", error.code], error.localizedDescription, error);
+      }
+  }];
 }
 
 // MARK: - HarborSDKDelegate methods -
@@ -522,7 +620,7 @@ RCT_EXPORT_METHOD(sendTapLockerCommand:(NSNumber * _Nonnull)lockerTapInterval
                                        @"rssi" : [towerToConnect RSSI]};
           [promiseHandler safelyResolve:towerInfo];
         } else {
-          [promiseHandler safelyResolve:@[name]];
+          [promiseHandler safelyResolve:name];
         }
       } else if(error != nil) {
         [promiseHandler safelyRejectWithCode:[NSString stringWithFormat:@"%ld", error.code] reason:@"Error connecting to a device" error:error];

@@ -192,37 +192,84 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
-    public void sendTerminateSession(Integer errorCode, @Nullable String errorMessage) {
-        HarborSDK.INSTANCE.sendTerminateSession(errorCode, errorMessage, true, null);
+    public void sendTerminateSession(Integer errorCode, @Nullable String errorMessage, Promise promise) {
+        HarborSDK.INSTANCE.sendTerminateSession(errorCode, errorMessage, true, (success, error) -> {
+            if (error == null) {
+                promise.resolve(success);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
     //endregion
 
     //region ------ Sync Events Commands ------
     @ReactMethod
-    public void sendRequestSyncStatusCommand() {
-        HarborSDK.INSTANCE.sendRequestSyncStatus((syncEventStart, syncEventCount, syncCommandStart, error) -> null);
+    public void sendRequestSyncStatusCommand(Promise promise) {
+        HarborSDK.INSTANCE.sendRequestSyncStatus((syncEventStart, syncEventCount, syncCommandStart, error) -> {
+            WritableMap responseMap = Arguments.createMap();
+            responseMap.putInt("syncEventStart", syncEventStart);
+            responseMap.putInt("syncEventCount", syncEventCount);
+            responseMap.putInt("syncCommandStart", syncCommandStart);
+            promise.resolve(responseMap);
+            return null;
+        });
     }
 
     @ReactMethod
-    public void sendSyncPullCommand(double syncEventStart) {
-        HarborSDK.INSTANCE.sendSyncPull((int)syncEventStart, (firstEventId, syncEventCount, payload, payloadAuth, error) -> null);
+    public void sendSyncPullCommand(double syncEventStart, Promise promise) {
+        HarborSDK.INSTANCE.sendSyncPull((int)syncEventStart, (firstEventId, syncEventCount, payload, payloadAuth, error) -> {
+            WritableMap responseMap = Arguments.createMap();
+            responseMap.putInt("firstEventId", firstEventId);
+            responseMap.putInt("syncEventCount", syncEventCount);
+            responseMap.putString("payload", hexString(payload));
+            responseMap.putString("payloadAuth", hexString(payloadAuth));
+            promise.resolve(responseMap);
+            return null;
+        });
     }
 
     @ReactMethod
-    public void sendSyncPushCommand(String payload, String payloadAuth) {
-        HarborSDK.INSTANCE.sendSyncPush(byteArray(payload), byteArray(payloadAuth), null);
+    public void sendSyncPushCommand(String payload, String payloadAuth, Promise promise) {
+        HarborSDK.INSTANCE.sendSyncPush(byteArray(payload), byteArray(payloadAuth), (success, error) -> {
+            if (error == null) {
+                promise.resolve(success);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     @ReactMethod
-    public void sendAddClientEventCommand(String clientInfo) {
-        HarborSDK.INSTANCE.sendAddClientEvent(byteArray(clientInfo), null);
+    public void sendAddClientEventCommand(String clientInfo, Promise promise) {
+        HarborSDK.INSTANCE.sendAddClientEvent(byteArray(clientInfo), (success, error) -> {
+            if (error == null) {
+                promise.resolve(success);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
     //endregion
 
-    //region ------ Sync Events Commands ------
+    //region ------ Locker Commands ------
     @ReactMethod
-    public void sendFindAvailableLockersCommand() {
-        HarborSDK.INSTANCE.sendFindAvailableLockers((availableLockers, error) -> null);
+    public void sendFindAvailableLockersCommand(Promise promise) {
+        HarborSDK.INSTANCE.sendFindAvailableLockers((availableLockers, error) -> {
+            if (error == null) {
+                WritableMap availabilityWritableMap = Arguments.createMap();
+                for (Map.Entry<Long, Long> entry : availableLockers.entrySet()) {
+                    availabilityWritableMap.putInt(entry.getKey().toString(), Math.toIntExact(entry.getValue()));
+                }
+                promise.resolve(availabilityWritableMap);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     @ReactMethod
@@ -238,8 +285,19 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
-    public void sendFindLockersWithTokenCommand(String matchToken, boolean matchAvailable) {
-        HarborSDK.INSTANCE.sendFindLockersWithToken(matchAvailable, byteArray(matchToken), null);
+    public void sendFindLockersWithTokenCommand(String matchToken, boolean matchAvailable, Promise promise) {
+        HarborSDK.INSTANCE.sendFindLockersWithToken(matchAvailable, byteArray(matchToken), (availableLockers, error) -> {
+            if (error == null) {
+                WritableMap availabilityWritableMap = Arguments.createMap();
+                for (Map.Entry<Long, Long> entry : availableLockers.entrySet()) {
+                    availabilityWritableMap.putInt(entry.getKey().toString(), Math.toIntExact(entry.getValue()));
+                }
+                promise.resolve(availabilityWritableMap);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     @ReactMethod
@@ -248,7 +306,8 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
                                                String clientInfo,
                                                double matchLockerType,
                                                boolean matchAvailable,
-                                               String matchToken) {
+                                               String matchToken,
+                                               Promise promise) {
         HarborSDK.INSTANCE.sendOpenAvailableLocker(
                 (int)matchLockerType,
                 matchAvailable,
@@ -256,12 +315,26 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
                 byteArray(lockerToken),
                 lockerAvailable,
                 byteArray(clientInfo),
-                null);
+                (lockerId, error) -> {
+                    if (error == null) {
+                        promise.resolve(lockerId);
+                    } else {
+                        promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+                    }
+                    return null;
+                });
     }
 
     @ReactMethod
-    public void sendReopenLockerCommand() {
-        HarborSDK.INSTANCE.sendReopenLocker(null);
+    public void sendReopenLockerCommand(Promise promise) {
+        HarborSDK.INSTANCE.sendReopenLocker((lockerId, error) -> {
+            if (error == null) {
+                promise.resolve(lockerId);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     @ReactMethod
@@ -273,18 +346,39 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
-    public void sendRevertLockerStateCommand(String clientInfo) {
-        HarborSDK.INSTANCE.sendRevertLockerState(byteArray(clientInfo), null);
+    public void sendRevertLockerStateCommand(String clientInfo, Promise promise) {
+        HarborSDK.INSTANCE.sendRevertLockerState(byteArray(clientInfo), (success, error) -> {
+            if (error == null) {
+                promise.resolve(success);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     @ReactMethod
-    public void sendSetKeypadCodeCommand(String keypadCode, Boolean keypadCodePersists, String keypadNextToken, Boolean keypadNextAvailable) {
-        HarborSDK.INSTANCE.sendSetKeypadCode(keypadCode, keypadCodePersists, byteArray(keypadNextToken), keypadNextAvailable, null);
+    public void sendSetKeypadCodeCommand(String keypadCode, Boolean keypadCodePersists, String keypadNextToken, Boolean keypadNextAvailable, Promise promise) {
+        HarborSDK.INSTANCE.sendSetKeypadCode(keypadCode, keypadCodePersists, byteArray(keypadNextToken), keypadNextAvailable, (success, error) -> {
+            if (error == null) {
+                promise.resolve(success);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     @ReactMethod
-    public void sendTapLockerCommand(double lockerTapIntervalMS, double lockerTapCount) {
-        HarborSDK.INSTANCE.sendTapLocker((int)lockerTapIntervalMS, (int)lockerTapCount, null);
+    public void sendTapLockerCommand(double lockerTapIntervalMS, double lockerTapCount, Promise promise) {
+        HarborSDK.INSTANCE.sendTapLocker((int)lockerTapIntervalMS, (int)lockerTapCount, (success, error) -> {
+            if (error == null) {
+                promise.resolve(success);
+            } else {
+                promise.reject(String.valueOf(error.getErrorCode()), error.getErrorMessage());
+            }
+            return null;
+        });
     }
 
     //endregion
@@ -394,18 +488,16 @@ public class RCTHarborLockersSDKModule extends ReactContextBaseJavaModule implem
                 return null;
             }
 
-            WritableArray params = Arguments.createArray();
             if (returnTowerInfoInConnection) {
                 WritableMap towerMap = Arguments.createMap();
                 towerMap.putString("towerId", hexString(towerToConnect.getTowerId()));
                 towerMap.putString("towerName", towerToConnect.getTowerName());
                 towerMap.putString("firmwareVersion", towerToConnect.getFwVersion());
                 towerMap.putInt("rssi", towerToConnect.getRSSI());
-                params.pushMap((ReadableMap) towerMap);
+                promiseHandler.safelyResolve(towerMap);
             } else {
-                params.pushString(towerName);
+                promiseHandler.safelyResolve(towerName);
             }
-            promiseHandler.safelyResolve(params);
 
             return null;
         });

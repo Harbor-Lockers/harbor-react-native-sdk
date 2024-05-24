@@ -2,6 +2,7 @@
  * This exposes the HarborLockersSDK native module as a JS module.
  */
 import { NativeModules } from 'react-native';
+import { Tower, SyncStatus, SyncEvents, LockerTypesAvailability } from './HarborTypes';
 
 const { HarborLockersSDK } = NativeModules;
 
@@ -9,17 +10,16 @@ interface HarborLockersSDKInterface {
   initializeSDK(): void;
   setLogLevel(logLevel: string): void;
   isSyncing(callback: (isSyncing: boolean) => void): void;
-  syncConnectedTower(): Promise<number>;
+  syncConnectedTower(): Promise<boolean>;
   setAccessToken(token: string, environment?: string): void;
   startTowersDiscovery(): void;
   connectToTowerWithIdentifier(
     towerId: string
-  ): Promise<HarborLockersSDKInterface>;
+  ): Promise<string>;
   connectToTower(
     towerId: string,
     discoveryTimeOut: number
-  ): Promise<any>;
-
+  ): Promise<Tower>;
   sendRequestSession(
     role: number,
     errorCallback: (errorCode: number, errorMessage: string) => void,
@@ -32,17 +32,16 @@ interface HarborLockersSDKInterface {
     errorCallback: (errorCode: number, errorMessage: string) => void,
     successCallback: () => void
   ): void;
-  sendTerminateSession(errorCode: number, errorMessage?: string): void;
-
-  sendRequestSyncStatusCommand(): void;
-  sendSyncPullCommand(syncEventStart: number): void;
-  sendSyncPushCommand(payload: string, payloadAuth: string): void;
-  sendAddClientEventCommand(clientInfo: string): void;
-  sendFindAvailableLockersCommand(): void;
+  sendTerminateSession(errorCode: number, errorMessage?: string): Promise<boolean>;
+  sendRequestSyncStatusCommand(): Promise<SyncStatus>;
+  sendSyncPullCommand(syncEventStart: number): Promise<SyncEvents>;
+  sendSyncPushCommand(payload: string, payloadAuth: string): Promise<boolean>;
+  sendAddClientEventCommand(clientInfo: string): Promise<boolean>;
+  sendFindAvailableLockersCommand(): Promise<LockerTypesAvailability>;
   sendFindLockersWithTokenCommand(
     matchToken: string,
     matchAvailable: boolean
-  ): void;
+  ): Promise<LockerTypesAvailability>;
   sendOpenLockerWithTokenCommand(
     payload: string,
     payloadAuth: string
@@ -54,17 +53,17 @@ interface HarborLockersSDKInterface {
     matchLockerType: number,
     matchAvailable: boolean,
     matchToken?: string
-  ): void;
-  sendReopenLockerCommand(): void;
+  ): Promise<number>;
+  sendReopenLockerCommand(): Promise<number>;
   sendCheckLockerDoorCommand(callback: (doorOpen: boolean) => void): void;
-  sendRevertLockerStateCommand(clientInfo: string): void;
+  sendRevertLockerStateCommand(clientInfo: string): Promise<boolean>;
   sendSetKeypadCodeCommand(
     keypadCode: string,
     keypadCodePersists: boolean,
     keypadNextToken: string,
     keypadNextAvailable: boolean
-  ): void;
-  sendTapLockerCommand(lockerTapInterval: number, lockerTapCount: number): void;
+  ): Promise<boolean>;
+  sendTapLockerCommand(lockerTapInterval: number, lockerTapCount: number): Promise<boolean>;
 }
 
 export default HarborLockersSDK as HarborLockersSDKInterface;
