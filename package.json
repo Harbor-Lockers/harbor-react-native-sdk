@@ -1,7 +1,7 @@
 {
   "name": "@harborlockers/react-native-sdk",
   "title": "Harbor React Native Sdk",
-  "version": "1.0.36",
+  "version": "1.0.37",
   "description": "A React Native wrapper for the Harbor SDK",
   "main": "HarborSDK.tsx",
   "files": [
