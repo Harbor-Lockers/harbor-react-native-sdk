@@ -89,5 +89,5 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     implementation 'com.facebook.react:react-native:+'  // From node_modules
-    implementation 'com.github.Harbor-Lockers:harbor-android-sdk:1.0.19'
+    implementation 'com.github.Harbor-Lockers:harbor-android-sdk:1.0.20'
 }
