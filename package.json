@@ -144,7 +144,7 @@
     ]
   },
   "codegenConfig": {
-    "name": "ReactNativeSdkSpec",
+    "name": "HarborLockersSDKSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "android": {

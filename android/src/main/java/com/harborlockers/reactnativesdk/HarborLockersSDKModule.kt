@@ -3,9 +3,9 @@ package com.harborlockers.reactnativesdk
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.annotations.ReactModule
 
-@ReactModule(name = ReactNativeSdkModule.NAME)
-class ReactNativeSdkModule(reactContext: ReactApplicationContext) :
-  NativeReactNativeSdkSpec(reactContext) {
+@ReactModule(name = HarborLockersSDKModule.NAME)
+class HarborLockersSDKModule(reactContext: ReactApplicationContext) :
+  NativeHarborLockersSDKSpec(reactContext) {
 
   override fun getName(): String {
     return NAME
@@ -18,6 +18,6 @@ class ReactNativeSdkModule(reactContext: ReactApplicationContext) :
   }
 
   companion object {
-    const val NAME = "ReactNativeSdk"
+    const val NAME = "HarborLockersSDK"
   }
 }

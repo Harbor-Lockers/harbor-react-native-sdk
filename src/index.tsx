@@ -1,5 +1,5 @@
-import ReactNativeSdk from './NativeReactNativeSdk';
+import HarborLockersSDK from './NativeHarborLockersSDK';
 
 export function multiply(a: number, b: number): number {
-  return ReactNativeSdk.multiply(a, b);
+  return HarborLockersSDK.multiply(a, b);
 }

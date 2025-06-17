@@ -7,10 +7,10 @@ import com.facebook.react.module.model.ReactModuleInfo
 import com.facebook.react.module.model.ReactModuleInfoProvider
 import java.util.HashMap
 
-class ReactNativeSdkPackage : BaseReactPackage() {
+class HarborLockersSDKPackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? {
-    return if (name == ReactNativeSdkModule.NAME) {
-      ReactNativeSdkModule(reactContext)
+    return if (name == HarborLockersSDKModule.NAME) {
+      HarborLockersSDKModule(reactContext)
     } else {
       null
     }
@@ -19,9 +19,9 @@ class ReactNativeSdkPackage : BaseReactPackage() {
   override fun getReactModuleInfoProvider(): ReactModuleInfoProvider {
     return ReactModuleInfoProvider {
       val moduleInfos: MutableMap<String, ReactModuleInfo> = HashMap()
-      moduleInfos[ReactNativeSdkModule.NAME] = ReactModuleInfo(
-        ReactNativeSdkModule.NAME,
-        ReactNativeSdkModule.NAME,
+      moduleInfos[HarborLockersSDKModule.NAME] = ReactModuleInfo(
+        HarborLockersSDKModule.NAME,
+        HarborLockersSDKModule.NAME,
         false,  // canOverrideExistingModule
         false,  // needsEagerInit
         false,  // isCxxModule
