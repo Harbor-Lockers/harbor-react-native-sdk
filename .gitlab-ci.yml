@@ -28,47 +28,34 @@ validate:
         echo "Tag version matches package version";
       fi
 
-push_tag_to_github:
-  stage: push-to-github
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$/'
+.default_push_to_github:
   variables:
     GIT_STRATEGY: clone
+  before_script:
+    - node -v
+    - yarn -v
+    - echo "${GITHUB_PEM_FILE}" > github-private-key.pem
+    - npm install -g github-app-installation-token
+    - GITHUB_TOKEN=$(github-app-installation-token --appId ${GITHUB_APP_ID} --installationId ${GITHUB_INSTALLATION_ID} --privateKeyLocation github-private-key.pem)
+    - git remote add github https://github.com/Harbor-Lockers/harbor-react-native-sdk.git
+    - git remote set-url github "https://git:${GITHUB_TOKEN}@github.com/Harbor-Lockers/harbor-react-native-sdk.git"
+    - git fetch github
+
+push_tag_to_github:
+  stage: push-to-github
+  extends: .default_push_to_github
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$/'
   script:
-    - |
-      node -v
-      yarn -v
-      # Setup GitHub permissions
-      echo "${GITHUB_PEM_FILE}" > github-private-key.pem
-      npm install -g github-app-installation-token
-      GITHUB_TOKEN=$(github-app-installation-token --appId ${GITHUB_APP_ID} --installationId ${GITHUB_INSTALLATION_ID} --privateKeyLocation github-private-key.pem)
-      
-      # push tag to GitHub
-      git remote add github https://github.com/Harbor-Lockers/harbor-react-native-sdk.git
-      git remote set-url github "https://git:${GITHUB_TOKEN}@github.com/Harbor-Lockers/harbor-react-native-sdk.git"
-      git fetch github
-      git push github "$CI_COMMIT_TAG"
+    - git push github "$CI_COMMIT_TAG"
 
 push_to_github_master:
   stage: push-to-github
+  extends: .default_push_to_github
   only:
     - master
-  variables:
-    GIT_STRATEGY: clone
   script:
-    - |
-      node -v
-      yarn -v
-      # Setup GitHub permissions
-      echo "${GITHUB_PEM_FILE}" > github-private-key.pem
-      npm install -g github-app-installation-token
-      GITHUB_TOKEN=$(github-app-installation-token --appId ${GITHUB_APP_ID} --installationId ${GITHUB_INSTALLATION_ID} --privateKeyLocation github-private-key.pem)
-      
-      # push to GitHub master
-      git remote add github https://github.com/Harbor-Lockers/harbor-react-native-sdk.git
-      git remote set-url github "https://git:${GITHUB_TOKEN}@github.com/Harbor-Lockers/harbor-react-native-sdk.git"
-      git fetch github
-      git push github HEAD:refs/heads/master
+    - git push github HEAD:refs/heads/master
 
 npm_publish:
   stage: publish
