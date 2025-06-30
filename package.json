@@ -1,6 +1,6 @@
 {
   "name": "@harborlockers/react-native-sdk",
-  "version": "1.0.41-beta.7",
+  "version": "1.0.41-beta.12",
   "description": "Harbor Lockers React Native SDK",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -36,6 +36,8 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build lib",
     "prepare": "bob build",
+    "verify:build": "test -f lib/module/index.js || (echo 'Build no existe: corre yarn bob build' && exit 1)",
+    "prepublishOnly": "yarn verify:build",
     "release": "release-it --only-version"
   },
   "keywords": [

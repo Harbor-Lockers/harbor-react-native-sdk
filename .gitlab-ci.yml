@@ -65,5 +65,6 @@ npm_publish:
     - node -v
     - yarn -v
     - yarn install --immutable
+    - yarn run prepare
     - yarn config set npmAuthToken "$NPM_TOKEN"
     - yarn npm publish --access=public
