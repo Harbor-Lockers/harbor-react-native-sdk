@@ -302,7 +302,7 @@ RCT_EXPORT_METHOD(sendRequestSessionAdvanced: (BOOL)syncEnabled
 }
 
 RCT_EXPORT_METHOD(sendTerminateSession:(double)errorCode
-                  errorMessage:(nonnull NSString *)errorMessage
+                  errorMessage:(NSString *)errorMessage
                   resolve:(nonnull RCTPromiseResolveBlock)resolve
                   reject:(nonnull RCTPromiseRejectBlock)reject)
 {
