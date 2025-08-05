@@ -1,6 +1,6 @@
 {
   "name": "@harborlockers/react-native-sdk",
-  "version": "1.0.42",
+  "version": "1.0.43-beta.1",
   "description": "Harbor Lockers React Native SDK",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
