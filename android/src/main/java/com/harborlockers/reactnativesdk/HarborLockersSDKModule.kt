@@ -10,10 +10,12 @@ import com.facebook.common.util.Hex
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.harborlockers.sdk.API.Environment
 import com.harborlockers.sdk.API.SessionPermission
+import com.harborlockers.sdk.Models.HarborError
 import com.harborlockers.sdk.Models.Tower
 import com.harborlockers.sdk.PublicInterface.HarborConnectionDelegate
 import com.harborlockers.sdk.PublicInterface.HarborSDK
@@ -562,6 +564,128 @@ class HarborLockersSDKModule(private val reactContext: ReactApplicationContext) 
       "error" -> HarborLogLevel.ERROR
       else -> HarborLogLevel.INFO
     }
+  }
+
+  @ReactMethod
+  override fun isSDKError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isSDKError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isAPIError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isAPIError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isFirmwareError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isFirmwareError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isAuthError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isAuthError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isPermissionsError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isPermissionsError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isCommunicationError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isCommunicationError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+
+  @ReactMethod
+  override fun isSessionError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isSessionError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isHTTPError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isHTTPError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isCancelled(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isCancelled)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isBluetoothError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isBluetoothError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod
+  override fun isNetworkError(error: ReadableMap, promise: Promise) {
+    val parsed = parseHarborError(error)
+    if (parsed != null) {
+      promise.resolve(parsed.isNetworkError)
+    } else {
+      promise.resolve(false)
+    }
+  }
+
+  @ReactMethod override fun isRNError(error: ReadableMap, promise: Promise) =
+    promise.resolve(error.getString("domain") == "sdk.rn")
+
+  private fun parseHarborError(errorMap: ReadableMap): HarborError? {
+    val code = errorMap.getInt("code")
+    val message = errorMap.getString("message") ?: ""
+    val domainString = errorMap.getString("domain") ?: "sdk.rn"
+    val domain = enumValues<ErrorDomain>().find { it.domainName == domainString } ?: return null
+    return HarborError(code, message, domain)
   }
 
   companion object {

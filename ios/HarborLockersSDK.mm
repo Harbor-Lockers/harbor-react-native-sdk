@@ -688,6 +688,100 @@ RCT_EXPORT_METHOD(sendTapLockerCommand:(double)lockerTapInterval
   towerIdDiscovering = nil;
 }
 
+RCT_EXPORT_METHOD(isSDKError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isSDKError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isAPIError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isAPIError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isFirmwareError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isFirmwareError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isAuthError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isAuthError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isPermissionsError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isPermissionsError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isCommunicationError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isCommunicationError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isSessionError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isSessionError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isHTTPError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isHTTPError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isCancelled:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isCancelled:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isBluetoothError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isBluetoothError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isNetworkError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(@([HarborError isNetworkError:[self parseNSError:errorDict]]));
+}
+
+RCT_EXPORT_METHOD(isRNError:(NSDictionary *)errorDict
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    resolve(@([[self parseNSError:errorDict].domain isEqualToString:@"sdk.rn"]));
+}
+
+- (NSError *)parseNSError:(NSDictionary *)dict
+{
+  NSNumber *code = dict[@"code"] ?: @(0);
+  NSString *domain = dict[@"domain"] ?: @"sdk.rn";
+  NSString *message = dict[@"message"] ?: @"Unknown error";
+
+  NSDictionary *userInfo = @{ NSLocalizedDescriptionKey: message };
+  return [NSError errorWithDomain:domain code:[code intValue] userInfo:userInfo];
+}
+
 #if RCT_NEW_ARCH_ENABLED
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
